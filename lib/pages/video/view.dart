@@ -771,7 +771,52 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
 
   Widget childSplit(double ratio) {
     final double videoHeight = maxHeight - padding.vertical;
-    final double width = videoHeight * ratio;
+    return _childSplit(
+      width: videoHeight * ratio,
+      height: videoHeight,
+    );
+  }
+
+  Widget childVerticalVideoSplit() {
+    final maxPlayerWidthFactor = videoDetailController
+        .plPlayerController
+        .verticalVideoPlayerWidthLimit
+        .value;
+    final contentWidth = maxWidth - padding.horizontal;
+    final availableHeight = maxHeight - padding.vertical;
+    final videoAspectRatio = videoDetailController.videoAspectRatio.value;
+    final maxAspectRatio =
+        maxPlayerWidthFactor * contentWidth / availableHeight;
+    final playerWidth = videoAspectRatio > maxAspectRatio
+        ? maxPlayerWidthFactor * contentWidth
+        : videoAspectRatio * availableHeight;
+    return _childSplit(
+      width: playerWidth,
+      height: availableHeight,
+    );
+  }
+
+  Widget childHorizontalVideoLayout(bool isFullScreen) {
+    final maxPlayerHeightFactor = videoDetailController
+        .plPlayerController
+        .horizontalVideoPlayerHeightLimit
+        .value;
+    final contentWidth = maxWidth - padding.horizontal;
+    final availableHeight = maxHeight - padding.vertical;
+    final videoHeightWidthRatio =
+        1 / videoDetailController.videoAspectRatio.value;
+    final maxAspectRatio =
+        maxPlayerHeightFactor * availableHeight / contentWidth;
+    final playerHeight = videoHeightWidthRatio > maxAspectRatio
+        ? maxPlayerHeightFactor * availableHeight
+        : videoHeightWidthRatio * contentWidth;
+    return _childWhenDisabledAlmostSquareInner(
+      isFullScreen,
+      playerHeight: playerHeight,
+    );
+  }
+
+  Widget _childSplit({required double width, required double height}) {
     final videoWidth = isFullScreen ? maxWidth : width;
     final introWidth = maxWidth - width - padding.horizontal;
     return Row(
@@ -779,10 +824,10 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       children: [
         SizedBox(
           width: videoWidth,
-          height: videoHeight,
+          height: height,
           child: videoPlayer(
             width: videoWidth,
-            height: videoHeight,
+            height: height,
           ),
         ),
         Offstage(
@@ -1000,24 +1045,27 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   });
 
   Widget childWhenDisabledAlmostSquareInner(bool isFullScreen) {
-    if (enableVerticalExpand) {
-      return Obx(
-        () {
-          if (videoDetailController.isVertical.value && !isPortrait) {
-            return childSplit(9 / 16);
-          }
-
-          return _childWhenDisabledAlmostSquareInner(isFullScreen);
-        },
-      );
-    }
-
-    return _childWhenDisabledAlmostSquareInner(isFullScreen);
+    return Obx(() {
+      final isVertical = videoDetailController.isVertical.value;
+      if (!isFullScreen &&
+          videoDetailController.plPlayerController.enableAdaptiveVideoPlayer.value) {
+        return isVertical
+            ? childVerticalVideoSplit()
+            : childHorizontalVideoLayout(isFullScreen);
+      }
+      if (enableVerticalExpand && isVertical && !isPortrait) {
+        return childSplit(9 / 16);
+      }
+      return _childWhenDisabledAlmostSquareInner(isFullScreen);
+    });
   }
 
-  Widget _childWhenDisabledAlmostSquareInner(bool isFullScreen) {
+  Widget _childWhenDisabledAlmostSquareInner(
+    bool isFullScreen, {
+    double? playerHeight,
+  }) {
     final shouldShowSeasonPanel = _shouldShowSeasonPanel;
-    final double height = maxHeight / 2.5;
+    final double height = playerHeight ?? maxHeight / 2.5;
     final videoHeight = isFullScreen
         ? maxHeight - (isWindowMode && !isPortrait ? 0 : padding.top)
         : height;

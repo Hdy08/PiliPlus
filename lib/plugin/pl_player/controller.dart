@@ -355,6 +355,12 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   late final bool autoExitFullscreen = Pref.autoExitFullscreen;
   late final bool autoPlayEnable = Pref.autoPlayEnable;
   late final bool enableVerticalExpand = Pref.enableVerticalExpand;
+  late final RxBool enableAdaptiveVideoPlayer =
+      Pref.enableAdaptiveVideoPlayer.obs;
+  late final RxDouble verticalVideoPlayerWidthLimit =
+      Pref.verticalVideoPlayerWidthLimit.obs;
+  late final RxDouble horizontalVideoPlayerHeightLimit =
+      Pref.horizontalVideoPlayerHeightLimit.obs;
   late final bool pipNoDanmaku = Pref.pipNoDanmaku;
 
   late final bool tempPlayerConf = Pref.tempPlayerConf;

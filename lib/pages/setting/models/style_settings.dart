@@ -25,6 +25,7 @@ import 'package:PiliPlus/pages/setting/widgets/dual_slider_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/multi_select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
+import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
 import 'package:PiliPlus/utils/extension/file_ext.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
@@ -76,6 +77,35 @@ List<SettingsModel> get styleSettings => [
       }
     },
   ),
+  if (Pref.horizontalScreen)
+    SwitchModel(
+      title: '启用自适应视频播放器',
+      subtitle: '可用窗口接近方形时，播放器宽/高在设定的限制内自动调节',
+      leading: const Icon(Icons.motion_photos_auto_outlined),
+      setKey: SettingBoxKey.enableAdaptiveVideoPlayer,
+      defaultVal: false,
+      onChanged: (value) =>
+          PlPlayerController.instance?.enableAdaptiveVideoPlayer.value = value,
+    ),
+  if (Pref.horizontalScreen && Pref.enableAdaptiveVideoPlayer)
+    NormalModel(
+      title: '竖屏视频播放器宽度限制',
+      leading: Transform.rotate(
+        angle: math.pi / 2,
+        child: const Icon(MdiIcons.arrowExpandVertical),
+      ),
+      getSubtitle: () =>
+          '播放竖屏视频时，左侧播放器最大宽度与可用窗口宽度的比值，当前：${Pref.verticalVideoPlayerWidthLimit.toStringAsFixed(2)}',
+      onTap: _showVerticalVideoPlayerWidthLimitDialog,
+    ),
+  if (Pref.horizontalScreen && Pref.enableAdaptiveVideoPlayer)
+    NormalModel(
+      title: '横屏视频播放器高度限制',
+      leading: const Icon(MdiIcons.arrowExpandVertical),
+      getSubtitle: () =>
+          '播放横屏视频时，上方播放器最大高度与可用窗口高度的比值，当前：${Pref.horizontalVideoPlayerHeightLimit.toStringAsFixed(2)}',
+      onTap: _showHorizontalVideoPlayerHeightLimitDialog,
+    ),
   const SwitchModel(
     title: '改用侧边栏',
     subtitle: '开启后底栏与顶栏被替换，且相关设置失效',
@@ -380,6 +410,147 @@ List<SettingsModel> get styleSettings => [
       leading: const Icon(Icons.autofps_select_outlined),
     ),
 ];
+
+Future<void> _showVerticalVideoPlayerWidthLimitDialog(
+  BuildContext context,
+  VoidCallback setState,
+) =>
+    _showVideoPlayerLimitDialog(
+      context,
+      setState,
+      title: '竖屏视频播放器宽度限制',
+      value: Pref.verticalVideoPlayerWidthLimit,
+      settingKey: SettingBoxKey.verticalVideoPlayerWidthLimit,
+      inputLabel: '最大宽度',
+      onChanged: (value) =>
+          PlPlayerController.instance?.verticalVideoPlayerWidthLimit.value =
+              value,
+    );
+
+Future<void> _showHorizontalVideoPlayerHeightLimitDialog(
+  BuildContext context,
+  VoidCallback setState,
+) =>
+    _showVideoPlayerLimitDialog(
+      context,
+      setState,
+      title: '横屏视频播放器高度限制',
+      value: Pref.horizontalVideoPlayerHeightLimit,
+      settingKey: SettingBoxKey.horizontalVideoPlayerHeightLimit,
+      inputLabel: '最大高度',
+      onChanged: (value) =>
+          PlPlayerController.instance?.horizontalVideoPlayerHeightLimit.value =
+              value,
+    );
+
+Future<void> _showVideoPlayerLimitDialog(
+  BuildContext context,
+  VoidCallback setState, {
+  required String title,
+  required double value,
+  required String settingKey,
+  required String inputLabel,
+  required ValueChanged<double> onChanged,
+}) async {
+  const min = 0.35;
+  const max = 0.65;
+  const defaultValue = 0.50;
+  double limit = value;
+  bool isValid = true;
+  final textController = TextEditingController(
+    text: limit.toStringAsFixed(2),
+  );
+  final res = await showDialog<double>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      onDispose: textController.dispose,
+      builder: (context, setDialogState) => AlertDialog(
+        title: Text(title),
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+        content: Column(
+          spacing: 20,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                tickMarkShape: SliderTickMarkShape.noTickMark,
+              ),
+              child: Slider(
+                padding: .zero,
+                value: limit,
+                min: min,
+                max: max,
+                secondaryTrackValue: defaultValue,
+                divisions: ((max - min) * 20).toInt(),
+                label: textController.text,
+                onChanged: (value) => setDialogState(() {
+                  limit = value.toPrecision(2);
+                  isValid = true;
+                  textController.text = limit.toStringAsFixed(2);
+                }),
+              ),
+            ),
+            TextFormField(
+              controller: textController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                LengthLimitingTextInputFormatter(4),
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  return RegExp(r'^\d*(?:\.\d{0,2})?$').hasMatch(newValue.text)
+                      ? newValue
+                      : oldValue;
+                }),
+              ],
+              decoration: InputDecoration(
+                labelText: inputLabel,
+                hintText: '0.35 - 0.65',
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                final parsed = double.tryParse(value);
+                final isInRange =
+                    parsed != null && parsed >= min && parsed <= max;
+                setDialogState(() {
+                  isValid = isInRange;
+                  if (isInRange) {
+                    limit = parsed.toPrecision(2);
+                  }
+                });
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await GStorage.setting.delete(settingKey);
+              onChanged(defaultValue);
+              setState();
+            },
+            child: const Text('重置'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '取消',
+              style: TextStyle(color: ColorScheme.of(context).outline),
+            ),
+          ),
+          TextButton(
+            onPressed: isValid ? () => Navigator.pop(context, limit) : null,
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (res != null) {
+    await GStorage.setting.put(settingKey, res);
+    onChanged(res);
+    setState();
+  }
+}
 
 void _showQualityDialog({
   required BuildContext context,

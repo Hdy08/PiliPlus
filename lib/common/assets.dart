@@ -14,6 +14,8 @@ abstract final class Assets {
   static const trendingBanner = 'assets/images/trending_banner.png';
   static const ai = 'assets/images/ai.png';
   static const error = 'assets/images/error.svg';
+  static const coin0 = 'assets/images/coin0.svg';
+  static const coin1 = 'assets/images/coin1.svg';
 
   static const livingChart = 'assets/images/live.gif';
   static const livingStatic = 'assets/images/live.png';

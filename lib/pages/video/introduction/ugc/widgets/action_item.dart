@@ -1,6 +1,7 @@
 import 'package:PiliPlus/common/widgets/custom_arc.dart';
 import 'package:PiliPlus/utils/extension/theme_ext.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
 class ActionItem extends StatelessWidget {
@@ -8,6 +9,8 @@ class ActionItem extends StatelessWidget {
     super.key,
     required this.icon,
     this.selectIcon,
+    this.iconAsset,
+    this.selectIconAsset,
     this.onTap,
     this.onLongPress,
     this.text,
@@ -22,6 +25,8 @@ class ActionItem extends StatelessWidget {
 
   final Icon icon;
   final Icon? selectIcon;
+  final String? iconAsset;
+  final String? selectIconAsset;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final String? text;
@@ -40,12 +45,22 @@ class ActionItem extends StatelessWidget {
     late final primary = !expand && colorScheme.isLight
         ? colorScheme.inversePrimary
         : colorScheme.primary;
-    Widget child = Icon(
-      selectStatus ? selectIcon!.icon! : icon.icon,
-      size: 18,
-      color: selectStatus ? primary : icon.color ?? colorScheme.outline,
-      semanticLabel: semanticsLabel,
-    );
+    final iconColor = selectStatus ? primary : icon.color ?? colorScheme.outline;
+    final asset = selectStatus ? selectIconAsset : iconAsset;
+    Widget child = asset == null
+        ? Icon(
+            selectStatus ? selectIcon!.icon! : icon.icon,
+            size: 18,
+            color: iconColor,
+            semanticLabel: semanticsLabel,
+          )
+        : SvgPicture.asset(
+            asset,
+            width: 18,
+            height: 18,
+            colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+            semanticsLabel: semanticsLabel,
+          );
 
     if (animation != null) {
       child = Stack(

@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
@@ -407,6 +408,8 @@ class _PgcIntroPageState extends State<PgcIntroPage> {
               animation: introController.tripleAnimation,
               icon: const Icon(FontAwesomeIcons.b),
               selectIcon: const Icon(FontAwesomeIcons.b),
+              iconAsset: Assets.coin0,
+              selectIconAsset: Assets.coin1,
               onTap: introController.actionCoinVideo,
               selectStatus: introController.hasCoin,
               semanticsLabel: '投币',

@@ -686,6 +686,8 @@ class _AudioPageState extends State<AudioPage> {
               animation: _controller.tripleAnimation,
               icon: const Icon(FontAwesomeIcons.b),
               selectIcon: const Icon(FontAwesomeIcons.b),
+              iconAsset: Assets.coin0,
+              selectIconAsset: Assets.coin1,
               onTap: _controller.actionCoinVideo,
               selectStatus: _controller.hasCoin,
               semanticsLabel: '投币',

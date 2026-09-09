@@ -3,6 +3,7 @@ import 'dart:convert' show jsonDecode, utf8;
 import 'dart:io' show Platform, File;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
@@ -2026,6 +2027,8 @@ class HeaderControlState extends State<HeaderControl>
                       color: Colors.white,
                     ),
                     selectIcon: const Icon(FontAwesomeIcons.b),
+                    iconAsset: Assets.coin0,
+                    selectIconAsset: Assets.coin1,
                     onTap: introController.actionCoinVideo,
                     selectStatus: introController.hasCoin,
                     semanticsLabel: '投币',

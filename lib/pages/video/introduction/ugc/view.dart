@@ -500,6 +500,8 @@ class _UgcIntroPanelState extends State<UgcIntroPanel> {
               animation: introController.tripleAnimation,
               icon: const Icon(FontAwesomeIcons.b),
               selectIcon: const Icon(FontAwesomeIcons.b),
+              iconAsset: Assets.coin0,
+              selectIconAsset: Assets.coin1,
               onTap: introController.actionCoinVideo,
               selectStatus: introController.hasCoin,
               semanticsLabel: '投币',

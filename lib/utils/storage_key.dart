@@ -34,6 +34,9 @@ abstract final class SettingBoxKey {
       maxVolume = 'maxVolume';
 
   static const String enableVerticalExpand = 'enableVerticalExpand',
+      enableAdaptiveVideoPlayer = 'enableAdaptiveVideoPlayer',
+      verticalVideoPlayerWidthLimit = 'verticalVideoPlayerWidthLimit',
+      horizontalVideoPlayerHeightLimit = 'horizontalVideoPlayerHeightLimit',
       feedBackEnable = 'feedBackEnable',
       enableLongShowControl = 'enableLongShowControl',
       horizontalScreen = 'horizontalScreen',

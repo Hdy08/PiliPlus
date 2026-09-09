@@ -170,6 +170,7 @@ class VideoDetailController extends GetxController
 
   late final scrollKey = GlobalKey<ExtendedNestedScrollViewState>();
   late final RxBool isVertical;
+  final RxDouble videoAspectRatio = (9 / 16).obs;
   late final RxDouble scrollRatio = 0.0.obs;
 
   ScrollController? _scrollCtr;
@@ -255,6 +256,10 @@ class VideoDetailController extends GetxController
           return;
         }
       }
+      if (width <= 0 || height <= 0) {
+        return;
+      }
+      videoAspectRatio.value = width / height;
       final isVertical = height > width;
       if (_scrollCtr?.hasClients != true) {
         videoHeight = isVertical ? maxVideoHeight : minVideoHeight;
@@ -688,6 +693,7 @@ class VideoDetailController extends GetxController
       ..buffered.value = 0;
 
     firstVideo = findVideoByQa(currentVideoQa.code, setCodecs: true);
+    _setVideoHeight();
     videoUrl = VideoUtils.getCdnUrl(firstVideo.playUrls);
 
     /// 根据currentAudioQa 重新设置audioUrl

@@ -680,6 +680,21 @@ abstract final class Pref {
   static bool get enableVerticalExpand =>
       _setting.get(SettingBoxKey.enableVerticalExpand, defaultValue: false);
 
+  static bool get enableAdaptiveVideoPlayer => _setting.get(
+    SettingBoxKey.enableAdaptiveVideoPlayer,
+    defaultValue: false,
+  );
+
+  static double get verticalVideoPlayerWidthLimit => _setting.get(
+    SettingBoxKey.verticalVideoPlayerWidthLimit,
+    defaultValue: 0.50,
+  );
+
+  static double get horizontalVideoPlayerHeightLimit => _setting.get(
+    SettingBoxKey.horizontalVideoPlayerHeightLimit,
+    defaultValue: 0.50,
+  );
+
   static double get defaultTextScale =>
       _setting.get(SettingBoxKey.defaultTextScale, defaultValue: 1.0);
 

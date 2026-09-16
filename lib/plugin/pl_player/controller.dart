@@ -17,8 +17,6 @@ import 'package:PiliPlus/models/user/danmaku_rule.dart';
 import 'package:PiliPlus/models/video/play/url.dart';
 import 'package:PiliPlus/models_new/video/video_shot/data.dart';
 import 'package:PiliPlus/pages/danmaku/danmaku_model.dart';
-import 'package:PiliPlus/pages/setting/models/play_settings.dart'
-    show kMaxVolume;
 import 'package:PiliPlus/pages/sponsor_block/block_mixin.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_source.dart';
 import 'package:PiliPlus/plugin/pl_player/models/data_status.dart';
@@ -233,7 +231,10 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       windowManager.setTitleBarStyle(TitleBarStyle.hidden);
     }
 
+    const shortSide = 280.0;
+    const minShortSide = 160.0;
     final Size size;
+    final Size minimumSize;
     final state = videoPlayerController!.state;
     int width = state.width;
     int height = state.height;
@@ -244,12 +245,14 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       height = this.height ?? 9;
     }
     if (height > width) {
-      size = Size(280.0, 280.0 * height / width);
+      size = Size(shortSide, shortSide * height / width);
+      minimumSize = Size(minShortSide, minShortSide * height / width);
     } else {
-      size = Size(280.0 * width / height, 280.0);
+      size = Size(shortSide * width / height, shortSide);
+      minimumSize = Size(minShortSide * width / height, minShortSide);
     }
 
-    await windowManager.setMinimumSize(size);
+    await windowManager.setMinimumSize(minimumSize);
     setAlwaysOnTop(true);
     windowManager
       ..setSize(size)
@@ -733,7 +736,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       'volume':
           (PlatformUtils.isMobile ? Pref.playerVolume : volume.value * 100)
               .toString(),
-      'volume-max': kMaxVolume.toString(),
+      'stream-lavf-o': 'reconnect=1,reconnect_max_retries=${Pref.retryCount}',
     };
     final autosync = Pref.autosync;
     if (autosync != '0') {
@@ -877,6 +880,8 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   final Set<ValueChanged<Duration>> _positionListeners = {};
   final Set<ValueChanged<PlayerStatus>> _statusListeners = {};
 
+  Timer? _wakeLockTimer;
+
   /// 播放事件监听
   void _startListeners(NativePlayer player) {
     assert(_subscriptions == null);
@@ -884,8 +889,11 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     _subscriptions = [
       /// playing
       stream.playing.listen((bool playing) {
-        WakelockPlus.toggle(enable: playing);
         if (playing) {
+          _wakeLockTimer?.cancel();
+          _wakeLockTimer = null;
+          WakelockPlus.enable();
+
           if (_isAutoEnterPip) {
             if (_isCurrVideoPage) {
               enterPip(autoEnter: true);
@@ -895,6 +903,12 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
           }
           playerStatus.value = .playing;
         } else {
+          _wakeLockTimer?.cancel();
+          _wakeLockTimer = Timer(
+            const Duration(milliseconds: 500),
+            WakelockPlus.disable,
+          );
+
           _disableAutoEnterPip();
           playerStatus.value = .paused;
         }
@@ -1154,9 +1168,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   void onSeekEnd() {
-    if (seekToPos != null) {
-      feedBack();
-    }
     if (showSeekPreview) {
       showPreview.value = false;
     }
@@ -1551,6 +1562,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       AndroidHelper$ToDart.onUserLeaveHint = null;
     }
     _timer?.cancel();
+    _wakeLockTimer?.cancel();
     // _position.close();
     // _playerEventSubs?.cancel();
     // _sliderPosition.close();

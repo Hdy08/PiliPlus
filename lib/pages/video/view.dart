@@ -194,10 +194,37 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         introController.startTimer();
         ctr.showDanmaku = true;
       }
+      _refreshPausedPlayerFrame(ctr);
     } else if (state == .paused) {
       introController.cancelTimer();
       ctr.showDanmaku = false;
     }
+  }
+
+  /// 修复：暂停状态下切到后台再切回，视频画面全黑。
+  ///
+  /// Android 在应用离开前台时会销毁视频 Surface，切回前台后重建的 Surface
+  /// 中没有任何帧。播放中 mpv 会持续出帧因而能自愈，但暂停时 mpv 不会主动
+  /// 渲染，画面会一直黑到用户手动点一次播放为止（锁屏再解锁同样触发）。
+  ///
+  /// 这里对暂停中的播放器做一次原位 seek：mpv 的 `seek <pos> absolute` 在
+  /// 非前进方向按 `--hr-seek=default` 走精确路径，会重新解码并渲染当前帧，
+  /// 所以既不会改变播放位置，也不会跳到关键帧。
+  ///
+  /// 根因是 media_kit_video 2.0.1 的 Android Surface 处理回归（上游
+  /// 00cb572cc「feat: upgrade media-kit」引入），官方 Release 2.1.4 用的
+  /// 1.2.5 无此问题。上游修复后可删除本方法与上面的调用。
+  void _refreshPausedPlayerFrame(PlPlayerController ctr) {
+    final player = ctr.videoPlayerController;
+    if (player == null || player.state.playing) {
+      return;
+    }
+    final position = player.state.position;
+    // 直播等无明确时长的源不适用
+    if (player.state.duration <= Duration.zero || position < Duration.zero) {
+      return;
+    }
+    player.seek(position);
   }
 
   Future<void>? playCallBack() {

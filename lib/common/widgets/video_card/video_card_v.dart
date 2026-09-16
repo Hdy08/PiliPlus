@@ -35,7 +35,7 @@ class VideoCardV extends StatelessWidget {
       case 'bangumi':
         PageUtils.viewPgc(epId: videoItem.param!);
         break;
-      case 'av':
+      case 'av' || 'vertical_av':
         var bvid = videoItem.bvid ?? IdUtils.av2bv(videoItem.aid!);
         var cid = videoItem.cid;
         bool isVertical = false;

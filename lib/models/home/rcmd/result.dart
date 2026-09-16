@@ -12,6 +12,11 @@ class RcmdVideoItemAppModel extends BaseRcmdVideoItemModel {
   ThreePoint? threePoint;
 
   RcmdVideoItemAppModel.fromJson(Map<String, dynamic> json) {
+    // app端竖屏视频返回 vertical_av，其 uri 为 bilibili://story/{aid}，
+    // 其余字段与 av 完全一致，统一按 av 处理（RcmdOwner 也依赖 goto 取值）
+    if (json['goto'] == 'vertical_av') {
+      json = {...json, 'goto': 'av'};
+    }
     aid = json['player_args']?['aid'] ?? parseIntOrNull(json['param']);
     bvid = json['bvid'] ?? IdUtils.av2bv(aid!);
     cid = json['player_args']?['cid'];

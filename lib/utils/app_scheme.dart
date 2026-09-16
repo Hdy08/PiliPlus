@@ -196,6 +196,21 @@ abstract final class PiliScheme {
               return true;
             }
             return false;
+          case 'story':
+            // bilibili://story/117243799213952?cid=41742893330&player_width=1080&player_height=1920
+            // 竖屏视频，aid 在 path 中，cid 在 query 中
+            String? storyAid = uriDigitRegExp.firstMatch(path)?.group(1);
+            if (storyAid != null) {
+              videoPush(
+                int.parse(storyAid),
+                null,
+                off: off,
+                progress: _videoProgress(uri.queryParameters),
+                part: uri.queryParameters['p'],
+              );
+              return true;
+            }
+            return false;
           case 'bangumi':
             // bilibili://bangumi/season/12345678?h5_awaken_params=random
             if (path.startsWith('/season')) {

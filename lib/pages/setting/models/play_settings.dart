@@ -5,6 +5,7 @@ import 'package:PiliPlus/models/common/super_chat_type.dart';
 import 'package:PiliPlus/models/common/video/subtitle_pref_type.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
+import 'package:PiliPlus/pages/setting/models/shortcut_settings.dart';
 import 'package:PiliPlus/pages/setting/pages/fullscreen_sc_size.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
@@ -159,11 +160,9 @@ List<SettingsModel> get playSettings => [
         } catch (_) {}
       },
     ),
-  const SwitchModel(
+  const WidgetModel(
     title: '启用键盘控制',
-    leading: Icon(Icons.keyboard_alt_outlined),
-    setKey: SettingBoxKey.keyboardControl,
-    defaultVal: true,
+    child: KeyboardShortcutSettings(),
   ),
   PopupModel(
     title: 'SuperChat (醒目留言) 显示类型',

@@ -156,6 +156,30 @@ class NormalModel extends SettingsModel {
   );
 }
 
+class WidgetModel extends SettingsModel {
+  const WidgetModel({
+    required this.title,
+    required this.child,
+    super.subtitle,
+    super.leading,
+    super.contentPadding,
+    super.titleStyle,
+  });
+
+  @override
+  final String title;
+  final Widget child;
+
+  @override
+  String get effectiveTitle => title;
+
+  @override
+  String? get effectiveSubtitle => subtitle;
+
+  @override
+  Widget get widget => child;
+}
+
 class SwitchModel extends SettingsModel {
   @override
   final String? title;

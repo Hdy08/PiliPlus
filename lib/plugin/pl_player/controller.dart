@@ -1,5 +1,6 @@
 import 'dart:async' show StreamSubscription, Timer;
-import 'dart:convert' show ascii, utf8;
+import 'dart:convert' show ascii, jsonDecode, utf8;
+import 'dart:ffi' show NativeCallable, Pointer, StructPointer, Void, nullptr;
 import 'dart:io' show Platform;
 import 'dart:math' show max, min;
 import 'dart:ui' as ui;
@@ -61,6 +62,9 @@ import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:media_kit/ffi/ffi.dart' show calloc, StringUtf8Pointer;
+import 'package:media_kit/generated/libmpv/bindings.dart'
+    show mpv_event_hook, mpv_event_id;
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
 import 'package:path/path.dart' as path;
@@ -716,7 +720,9 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       this.dataSource = dataSource;
       _autoPlay = autoplay;
       // 初始化数据加载状态
-      dataStatus.value = DataStatus.loading;
+      if (!Platform.isAndroid || _videoPlayerController == null) {
+        dataStatus.value = DataStatus.loading;
+      }
       // 初始化全屏方向
       _isVertical = isVertical ?? false;
       _aid = aid;
@@ -858,29 +864,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     if (Platform.isAndroid) {
       // Avoid sizing the surface using mpv's idle window between media loads.
       player.setProperty('force-window', 'no');
-      // Resize the buffer before media_kit attaches the next video's surface.
-      // A paused video may never redraw the frame decoded at the old size.
-      player.onLoadHooks.insert(0, () async {
-        final surfaceWidth = width;
-        final surfaceHeight = height;
-        if (surfaceWidth == null ||
-            surfaceHeight == null ||
-            surfaceWidth <= 1 ||
-            surfaceHeight <= 1) {
-          return;
-        }
-        await const MethodChannel(
-          'com.alexmercerind/media_kit_video',
-        ).invokeMethod<void>('VideoOutputManager.SetSurfaceTextureSize', {
-          'handle': player.handle.toString(),
-          'width': surfaceWidth.toString(),
-          'height': surfaceHeight.toString(),
-        });
-        player.setProperty(
-          'android-surface-size',
-          '${surfaceWidth}x$surfaceHeight',
-        );
-      });
+      _initAndroidSurfaceSize(player);
     }
 
     player.setMediaHeader(userAgent: BrowserUa.pc, referer: HttpString.baseUrl);
@@ -888,6 +872,86 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     _startListeners(player);
 
     return player;
+  }
+
+  void _initAndroidSurfaceSize(Player player) {
+    final mpv = NativePlayer.mpv;
+    final name = 'piliplus-surface-size'.toNativeUtf8();
+    final client = mpv.mpv_create_weak_client(player.ctx, name);
+    calloc.free(name);
+    if (client == nullptr) return;
+    var disposed = false;
+    Future<void>? pending;
+
+    Future<void> drain() async {
+      while (!disposed) {
+        final event = mpv.mpv_wait_event(client, 0).ref;
+        if (event.event_id == mpv_event_id.MPV_EVENT_NONE) return;
+        if (event.event_id != mpv_event_id.MPV_EVENT_HOOK) continue;
+        final id = event.data.cast<mpv_event_hook>().ref.id;
+        try {
+          // on_preloaded exposes demuxer dimensions before any frame is decoded.
+          // Live/offline media may lack API dimensions; honor PAR and rotation.
+          final tracks = (jsonDecode(player.getProperty('track-list')) as List)
+              .cast<Map<String, dynamic>>()
+              .where(
+                (track) =>
+                    track['type'] == 'video' && track['albumart'] != true,
+              );
+          final vid = player.getProperty('vid');
+          final track =
+              tracks.where((t) => t['id'].toString() == vid).firstOrNull ??
+              tracks.where((t) => t['default'] == true).firstOrNull ??
+              tracks.firstOrNull;
+          var surfaceWidth = (track?['demux-w'] as int?) ?? width ?? 0;
+          var surfaceHeight = (track?['demux-h'] as int?) ?? height ?? 0;
+          if (surfaceWidth <= 1 || surfaceHeight <= 1) continue;
+          final par = (track?['demux-par'] as num?)?.toDouble();
+          if (par != null && par > 0) {
+            surfaceWidth = (surfaceWidth * par).round();
+          }
+          final rotation = track?['demux-rotate'];
+          if (rotation == 90 || rotation == 270) {
+            (surfaceWidth, surfaceHeight) = (surfaceHeight, surfaceWidth);
+          }
+          await const MethodChannel('com.alexmercerind/media_kit_video')
+              .invokeMethod<void>('VideoOutputManager.SetSurfaceTextureSize', {
+                'handle': player.handle.toString(),
+                'width': surfaceWidth.toString(),
+                'height': surfaceHeight.toString(),
+              });
+          player.setProperty(
+            'android-surface-size',
+            '${surfaceWidth}x$surfaceHeight',
+          );
+        } catch (error, stackTrace) {
+          if (kDebugMode) debugPrint('$error\n$stackTrace');
+        } finally {
+          mpv.mpv_hook_continue(client, id);
+        }
+      }
+    }
+
+    void onWakeup(Pointer<Void> _) {
+      if (!disposed && pending == null) {
+        pending = drain().whenComplete(() => pending = null);
+      }
+    }
+
+    final wakeup = NativeCallable<Void Function(Pointer<Void>)>.listener(
+      onWakeup,
+    );
+    mpv.mpv_set_wakeup_callback(client, wakeup.nativeFunction, nullptr);
+    final hook = 'on_preloaded'.toNativeUtf8();
+    mpv.mpv_hook_add(client, 0, hook, 0);
+    calloc.free(hook);
+    player.release.insert(0, () async {
+      disposed = true;
+      mpv.mpv_set_wakeup_callback(client, nullptr, nullptr);
+      await pending;
+      mpv.mpv_destroy(client);
+      wakeup.close();
+    });
   }
 
   late final buffer = Pref.initBuffer(_playbackSpeed.value);

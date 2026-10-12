@@ -1,5 +1,6 @@
 import 'dart:async' show StreamSubscription, Timer;
-import 'dart:convert' show ascii, utf8;
+import 'dart:convert' show ascii, jsonDecode, utf8;
+import 'dart:ffi' show NativeCallable, Pointer, StructPointer, Void, nullptr;
 import 'dart:io' show Platform;
 import 'dart:math' show max, min;
 import 'dart:ui' as ui;
@@ -54,13 +55,16 @@ import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart'
-    show DeviceOrientation, HapticFeedback, KeyDownEvent, LogicalKeyboardKey;
+    show DeviceOrientation, HapticFeedback, KeyDownEvent, MethodChannel;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:media_kit/ffi/ffi.dart' show calloc, StringUtf8Pointer;
+import 'package:media_kit/generated/libmpv/bindings.dart'
+    show mpv_event_hook, mpv_event_id;
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
 import 'package:path/path.dart' as path;
@@ -656,9 +660,9 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
     if (Platform.isAndroid && autoPiP) {
       if (DeviceUtils.sdkInt < 31) {
-        AndroidHelper$ToDart.onUserLeaveHint = Runnable.implement(
-          $Runnable(run: _onUserLeaveHint),
-        );
+        final func = Runnable.implement($Runnable(run: _onUserLeaveHint));
+        AndroidHelper$ToDart.onUserLeaveHint = func;
+        func.release();
       } else {
         _isAutoEnterPip = true;
       }
@@ -861,11 +865,91 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       ),
     );
 
+    if (Platform.isAndroid) {
+      // Avoid sizing the surface using mpv's idle window between media loads.
+      player.setProperty('force-window', 'no');
+      _initAndroidSurfaceSize(player);
+    }
+
     player.setMediaHeader(userAgent: BrowserUa.pc, referer: HttpString.baseUrl);
 
     _startListeners(player);
 
     return player;
+  }
+
+  void _initAndroidSurfaceSize(Player player) {
+    final mpv = NativePlayer.mpv;
+    final client = mpv.mpv_create_weak_client(player.ctx, nullptr);
+    if (client == nullptr) return;
+    // Attach before decoding, after sizing; do not wait for video-out-params.
+    final attachSurface = player.onLoadHooks.removeLast();
+    Future<void>? pending;
+    final wakeup = NativeCallable<Void Function(Pointer<Void>)>.listener((
+      Pointer<Void> _,
+    ) {
+      if (player.disposed || pending != null) return;
+      pending = () async {
+        while (!player.disposed) {
+          final event = mpv.mpv_wait_event(client, 0).ref;
+          if (event.event_id == mpv_event_id.MPV_EVENT_NONE) return;
+          if (event.event_id != mpv_event_id.MPV_EVENT_HOOK) continue;
+          final id = event.data.cast<mpv_event_hook>().ref.id;
+          try {
+            // Demuxer dimensions are available before the first frame is decoded.
+            final tracks =
+                (jsonDecode(player.getProperty('track-list')) as List)
+                    .cast<Map<String, dynamic>>()
+                    .where(
+                      (t) => t['type'] == 'video' && t['albumart'] != true,
+                    );
+            final vid = player.getProperty('vid');
+            final track =
+                tracks.where((t) => t['id'].toString() == vid).firstOrNull ??
+                tracks.where((t) => t['default'] == true).firstOrNull ??
+                tracks.firstOrNull;
+            var surfaceWidth = (track?['demux-w'] as int?) ?? width ?? 0;
+            var surfaceHeight = (track?['demux-h'] as int?) ?? height ?? 0;
+            if (surfaceWidth <= 1 || surfaceHeight <= 1) continue;
+            if (track?['demux-par'] case final num par when par > 0) {
+              surfaceWidth = (surfaceWidth * par).round();
+            }
+            if (track?['demux-rotate'] case 90 || 270) {
+              (surfaceWidth, surfaceHeight) = (surfaceHeight, surfaceWidth);
+            }
+            await const MethodChannel(
+              'com.alexmercerind/media_kit_video',
+            ).invokeMethod<void>('VideoOutputManager.SetSurfaceTextureSize', {
+              'handle': player.handle.toString(),
+              'width': surfaceWidth.toString(),
+              'height': surfaceHeight.toString(),
+            });
+            player.setProperty(
+              'android-surface-size',
+              '${surfaceWidth}x$surfaceHeight',
+            );
+          } catch (error, stackTrace) {
+            if (kDebugMode) debugPrint('$error\n$stackTrace');
+          } finally {
+            try {
+              await attachSurface();
+            } finally {
+              mpv.mpv_hook_continue(client, id);
+            }
+          }
+        }
+      }().whenComplete(() => pending = null);
+    });
+    mpv.mpv_set_wakeup_callback(client, wakeup.nativeFunction, nullptr);
+    final hook = 'on_preloaded'.toNativeUtf8();
+    mpv.mpv_hook_add(client, 0, hook, 0);
+    calloc.free(hook);
+    player.release.insert(0, () async {
+      mpv.mpv_set_wakeup_callback(client, nullptr, nullptr);
+      await pending;
+      mpv.mpv_destroy(client);
+      wakeup.close();
+    });
   }
 
   late final buffer = Pref.initBuffer(_playbackSpeed.value);
@@ -1661,7 +1745,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       _clearPreview();
     }
     if (Platform.isAndroid) {
-      AndroidHelper$ToDart.onUserLeaveHint?.release();
       AndroidHelper$ToDart.onUserLeaveHint = null;
     } else if (Platform.isIOS) {
       IOSPipHelper.dispose();
@@ -1752,77 +1835,82 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     videoShot = await VideoHttp.videoshot(bvid: bvid, cid: cid!);
   }
 
+  int _screenshotState = 0;
   Future<void> takeScreenshot() async {
+    if (_screenshotState > 0) return;
+    _screenshotState = 1;
     SmartDialog.showToast('截图中');
     final image = await videoPlayerController?.screenshot();
-    if (image == null) {
-      SmartDialog.showToast('截图失败');
-      return;
-    }
-
-    var saved = false;
-    Future<void> save() async {
-      if (saved) return;
-      saved = true;
-      Get.back(result: false);
-      final bytes = await image.toByteData(format: .png);
-      image.dispose();
-      if (bytes != null) {
-        final time = DurationUtils.formatDuration(
-          positionInMilliseconds / 1000,
-        ).replaceAll(':', '-');
-        ImageUtils.saveByteImg(
-          bytes: bytes.buffer.asUint8List(),
-          fileName: 'screenshot_${cid}_$time',
-        );
-      } else {
-        SmartDialog.showToast('保存失败');
-      }
-    }
-
-    SmartDialog.showToast('点击弹窗或按 Enter 保存截图');
-    final dispose = await showDialog<bool>(
-      context: Get.context!,
-      builder: (context) => Focus(
-        autofocus: true,
-        onKeyEvent: (node, event) {
-          if (event is KeyDownEvent &&
-              (event.logicalKey == LogicalKeyboardKey.enter ||
-                  event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-            save();
-            return KeyEventResult.handled;
+    if (image != null) {
+      SmartDialog.showToast('点击弹窗或按 Enter 保存截图');
+      await showDialog(
+        context: Get.context!,
+        requestFocus: true,
+        builder: (context) {
+          Future<void> save() async {
+            if (_screenshotState > 1) return;
+            _screenshotState = 2;
+            final bytes = await image.toByteData(format: .png);
+            if (bytes != null) {
+              final time = DurationUtils.formatDuration(
+                positionInMilliseconds / 1000,
+              ).replaceAll(':', '-');
+              ImageUtils.saveByteImg(
+                bytes: bytes.buffer.asUint8List(),
+                fileName: 'screenshot_${cid}_$time',
+              );
+            } else {
+              SmartDialog.showToast('保存失败');
+            }
+            Get.back();
           }
-          return KeyEventResult.ignored;
-        },
-        child: GestureDetector(
-          onTap: save,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: min(MediaQuery.widthOf(context) / 3, 350),
-                ),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      width: 5,
-                      color: ColorScheme.of(context).surface,
+
+          return Focus(
+            autofocus: true,
+            onKeyEvent: (node, event) {
+              if (event is KeyDownEvent) {
+                final key = event.logicalKey;
+                if (key == .keyS || key == .enter || key == .numpadEnter) {
+                  save();
+                  return .handled;
+                }
+              }
+              return .ignored;
+            },
+            child: GestureDetector(
+              onTap: save,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: min(MediaQuery.widthOf(context) / 3, 350),
                     ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(5),
-                    child: RawImage(image: image),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          width: 5,
+                          color: ColorScheme.of(context).surface,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: RawImage(image: image),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-    if (dispose ?? true) image.dispose();
+          );
+        },
+      );
+      image.dispose();
+    } else {
+      SmartDialog.showToast('截图失败');
+    }
+    _screenshotState = 0;
   }
 
   void onPopInvokedWithResult(bool didPop, Object? result) {

@@ -34,7 +34,7 @@ class _KeyboardShortcutSettingsState extends State<KeyboardShortcutSettings> {
       ),
       if (Pref.keyboardControl)
         const NormalModel(
-          leading: Icon(Icons.keyboard_outlined),
+          leading: Icon(Icons.keyboard_alt_outlined),
           title: '快捷键设置',
           subtitle: '修改播放器快捷键',
           onTap: _showShortcutSettingsDialog,

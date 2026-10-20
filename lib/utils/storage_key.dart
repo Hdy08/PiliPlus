@@ -112,6 +112,7 @@ abstract final class SettingBoxKey {
       showMedal = 'showMedal',
       enableLivePhoto = 'enableLivePhoto',
       showSeekPreview = 'showSeekPreview',
+      showHoverPreview = 'showHoverPreview',
       showDmChart = 'showDmChart',
       enableCommAntifraud = 'enableCommAntifraud',
       biliSendCommAntifraud = 'biliSendCommAntifraud',

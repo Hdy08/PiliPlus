@@ -31,29 +31,70 @@ class _KeyboardShortcutSettingsState extends State<KeyboardShortcutSettings> {
         defaultVal: true,
         onChanged: (_) => setState(() {}),
       ),
-      if (Pref.keyboardControl) ...[
-        for (final action in ShortcutAction.values)
-          if (!action.desktopOnly || PlatformUtils.isDesktop)
-            NormalModel(
-              leading: const Icon(Icons.keyboard_outlined),
-              title: action.title,
-              getSubtitle: () => _bindingLabel(action),
-              onTap: (context, setState) {
-                _showCaptureDialog(context, action, setState);
-              },
-            ),
+      if (Pref.keyboardControl)
         const NormalModel(
-          leading: Icon(Icons.restart_alt_outlined),
-          title: '恢复全部默认',
-          subtitle: '清除全部自定义按键绑定',
-          onTap: _resetAll,
+          leading: Icon(Icons.keyboard_outlined),
+          title: '快捷键设置',
+          subtitle: '修改播放器快捷键',
+          onTap: _showShortcutSettingsDialog,
         ),
-      ],
     ];
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [for (final setting in settings) setting.widget],
+    );
+  }
+}
+
+void _showShortcutSettingsDialog(BuildContext context, VoidCallback _) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => const _ShortcutSettingsDialog(),
+  );
+}
+
+class _ShortcutSettingsDialog extends StatefulWidget {
+  const _ShortcutSettingsDialog();
+
+  @override
+  State<_ShortcutSettingsDialog> createState() =>
+      _ShortcutSettingsDialogState();
+}
+
+class _ShortcutSettingsDialogState extends State<_ShortcutSettingsDialog> {
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      constraints: Style.dialogFixedConstraints,
+      title: const Text('快捷键设置'),
+      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final action in ShortcutAction.values)
+                if (!action.desktopOnly || PlatformUtils.isDesktop)
+                  NormalModel(
+                    title: action.title,
+                    getSubtitle: () => _bindingLabel(action),
+                    onTap: (context, refresh) {
+                      _showCaptureDialog(context, action, refresh);
+                    },
+                  ).widget,
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => _resetAll(context, () => setState(() {})),
+          child: const Text('恢复全部默认'),
+        ),
+        TextButton(onPressed: Get.back, child: const Text('关闭')),
+      ],
     );
   }
 }

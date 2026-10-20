@@ -64,6 +64,10 @@ class _ShortcutSettingsDialog extends StatefulWidget {
 }
 
 class _ShortcutSettingsDialogState extends State<_ShortcutSettingsDialog> {
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -82,8 +86,20 @@ class _ShortcutSettingsDialogState extends State<_ShortcutSettingsDialog> {
                     leading: Icon(_shortcutIcon(action)),
                     title: action.title,
                     getSubtitle: () => _bindingLabel(action),
-                    onTap: (context, refresh) {
-                      _showCaptureDialog(context, action, refresh);
+                    getTrailing:
+                        ShortcutService.bindingOf(action) !=
+                            action.defaultBinding
+                        ? (_) => IconButton(
+                            tooltip: '恢复默认',
+                            icon: const Icon(Icons.restart_alt_outlined),
+                            onPressed: () {
+                              ShortcutService.resetBinding(action);
+                              _refresh();
+                            },
+                          )
+                        : null,
+                    onTap: (context, _) {
+                      _showCaptureDialog(context, action, _refresh);
                     },
                   ).widget,
             ],
@@ -92,7 +108,7 @@ class _ShortcutSettingsDialogState extends State<_ShortcutSettingsDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => _resetAll(context, () => setState(() {})),
+          onPressed: () => _resetAll(context, _refresh),
           child: const Text('恢复全部默认'),
         ),
         TextButton(onPressed: Get.back, child: const Text('关闭')),

@@ -273,6 +273,7 @@ List<SettingsModel> get playSettings => [
     ),
   const WidgetModel(
     title: '启用键盘控制',
+    subtitle: '快捷键设置',
     child: KeyboardShortcutSettings(),
   ),
   PopupModel(

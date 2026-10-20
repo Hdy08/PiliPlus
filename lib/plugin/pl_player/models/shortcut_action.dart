@@ -118,6 +118,12 @@ enum ShortcutAction {
     KeyBinding(LogicalKeyboardKey.keyQ),
     context: .live,
   ),
+  refreshStreamAlt(
+    '刷新直播流（R）',
+    .playback,
+    KeyBinding(LogicalKeyboardKey.keyR),
+    context: .live,
+  ),
   fullscreen('全屏', .display, KeyBinding(LogicalKeyboardKey.keyF)),
   inAppFullscreen(
     '应用内全屏',
@@ -138,6 +144,13 @@ enum ShortcutAction {
     '三连（快按点赞，长按三连）',
     .interact,
     KeyBinding(LogicalKeyboardKey.keyQ),
+    isHold: true,
+    context: .vod,
+  ),
+  likeTripleAlt(
+    '三连（仅长按）',
+    .interact,
+    KeyBinding(LogicalKeyboardKey.keyR),
     isHold: true,
     context: .vod,
   ),

@@ -164,9 +164,10 @@ class PlayerFocus extends StatelessWidget {
     // 需要看到 KeyUp 的按住型动作只有 isHold 那 4 个：音量加减、快进、三连。
     if (!isDown && !action.isHold) return true;
 
-    // 任何其他按键按下时取消进行中的三连（Q 长按本身除外）
+    // 任何其他按键按下时取消进行中的三连（Q/R 长按本身除外）
     if (isDown &&
         action != ShortcutAction.likeTriple &&
+        action != ShortcutAction.likeTripleAlt &&
         (introController?.isTripling ?? false)) {
       introController!.onCancelTriple();
     }
@@ -223,6 +224,7 @@ class PlayerFocus extends StatelessWidget {
         return true;
 
       case ShortcutAction.refreshStream:
+      case ShortcutAction.refreshStreamAlt:
         onRefresh?.call();
         return true;
 
@@ -289,10 +291,11 @@ class PlayerFocus extends StatelessWidget {
         return true;
 
       case ShortcutAction.likeTriple:
+      case ShortcutAction.likeTripleAlt:
         if (event is KeyDownEvent) {
           introController!.onStartTriple();
         } else if (event is KeyUpEvent) {
-          introController!.onCancelTriple(true);
+          introController!.onCancelTriple(action == ShortcutAction.likeTriple);
         }
         return true;
 

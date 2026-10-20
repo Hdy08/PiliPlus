@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/style.dart';
+import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/plugin/pl_player/models/shortcut_action.dart';
 import 'package:PiliPlus/services/shortcut_service.dart';
@@ -78,6 +79,7 @@ class _ShortcutSettingsDialogState extends State<_ShortcutSettingsDialog> {
               for (final action in ShortcutAction.values)
                 if (!action.desktopOnly || PlatformUtils.isDesktop)
                   NormalModel(
+                    leading: Icon(_shortcutIcon(action)),
                     title: action.title,
                     getSubtitle: () => _bindingLabel(action),
                     onTap: (context, refresh) {
@@ -98,6 +100,34 @@ class _ShortcutSettingsDialogState extends State<_ShortcutSettingsDialog> {
     );
   }
 }
+
+IconData _shortcutIcon(ShortcutAction action) => switch (action) {
+  .playPause => Icons.play_circle_outline,
+  .mute => Icons.volume_off_outlined,
+  .volumeUp => Icons.volume_up_outlined,
+  .volumeDown => Icons.volume_down_outlined,
+  .seekForward => Icons.fast_forward_outlined,
+  .seekBackward => Icons.fast_rewind_outlined,
+  .refreshStream || .refreshStreamAlt => Icons.refresh_outlined,
+  .fullscreen => Icons.fullscreen_outlined,
+  .inAppFullscreen => Icons.fit_screen_outlined,
+  .desktopPip => Icons.picture_in_picture_alt_outlined,
+  .screenshot => Icons.photo_camera_outlined,
+  .lockControls => Icons.lock_outline,
+  .toggleDanmaku => CustomIcons.dm_on,
+  .sendDanmaku => Icons.send_outlined,
+  .likeTriple || .likeTripleAlt => Icons.thumb_up_outlined,
+  .coin => Icons.monetization_on_outlined,
+  .fav => CustomIcons.star_favorite_line,
+  .watchLater || .watchLaterAlt => CustomIcons.watch_later_outlined,
+  .relationMod => Icons.person_add_outlined,
+  .speedDown || .speedUp => Icons.speed_outlined,
+  .speed1x => Icons.looks_one_outlined,
+  .speed2x => Icons.looks_two_outlined,
+  .speedReset => Icons.restore_outlined,
+  .prevEpisode => Icons.skip_previous_outlined,
+  .nextEpisode => Icons.skip_next_outlined,
+};
 
 String _bindingLabel(ShortcutAction action) {
   final text = ShortcutService.formatBinding(

@@ -1,6 +1,8 @@
 #include "flutter_window.h"
 
+#include <imm.h>
 #include <optional>
+#include <variant>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -26,7 +28,31 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
 
-  SetChildContent(flutter_controller_->view()->GetNativeWindow());
+  const HWND flutter_view = flutter_controller_->view()->GetNativeWindow();
+  SetChildContent(flutter_view);
+  ImmAssociateContextEx(flutter_view, nullptr, 0);
+
+  ime_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "piliplus/windows_ime",
+          &flutter::StandardMethodCodec::GetInstance());
+  ime_channel_->SetMethodCallHandler(
+      [flutter_view](const auto& call, auto result) {
+        if (call.method_name() != "setImeEnabled") {
+          result->NotImplemented();
+          return;
+        }
+
+        const auto* enabled = std::get_if<bool>(call.arguments());
+        if (enabled == nullptr) {
+          result->Error("invalid_argument", "Expected a boolean value.");
+          return;
+        }
+
+        ImmAssociateContextEx(flutter_view, nullptr,
+                              *enabled ? IACE_DEFAULT : 0);
+        result->Success();
+      });
 
   // flutter_controller_->engine()->SetNextFrameCallback([&]() {
   //   this->Show();

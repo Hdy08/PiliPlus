@@ -293,13 +293,19 @@ class _VideoShotImageState extends State<VideoShotImage> {
 const double _triangleHeight = 5.6;
 
 class _DanmakuTip extends SingleChildRenderObjectWidget {
-  const _DanmakuTip({this.offset = 0, super.child});
+  const _DanmakuTip({
+    super.key,
+    this.offset = 0,
+    this.above = false,
+    super.child,
+  });
 
   final double offset;
+  final bool above;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return _RenderDanmakuTip(offset: offset);
+    return _RenderDanmakuTip(offset: offset, above: above);
   }
 
   @override
@@ -307,14 +313,24 @@ class _DanmakuTip extends SingleChildRenderObjectWidget {
     BuildContext context,
     _RenderDanmakuTip renderObject,
   ) {
-    renderObject.offset = offset;
+    renderObject
+      ..offset = offset
+      ..above = above;
   }
 }
 
 class _RenderDanmakuTip extends RenderProxyBox {
   _RenderDanmakuTip({
     required this._offset,
+    required this._above,
   });
+
+  bool _above;
+  set above(bool value) {
+    if (_above == value) return;
+    _above = value;
+    markNeedsPaint();
+  }
 
   double _offset;
   double get offset => _offset;
@@ -360,7 +376,13 @@ class _RenderDanmakuTip extends RenderProxyBox {
 
     context.canvas
       ..save()
-      ..translate(offset.dx, offset.dy)
+      ..translate(offset.dx, offset.dy);
+    if (_above) {
+      context.canvas
+        ..translate(0, size.height)
+        ..scale(1, -1);
+    }
+    context.canvas
       ..drawPath(path, paint)
       ..drawPath(
         path,

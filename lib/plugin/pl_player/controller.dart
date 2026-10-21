@@ -408,7 +408,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   // 弹幕相关配置
-  late final enableTapDm = PlatformUtils.isMobile && Pref.enableTapDm;
+  late final enableTapDm = Pref.enableTapDm;
   late RuleFilter filters = Pref.danmakuFilterRule;
   // 关联弹幕控制器
   DanmakuController<DanmakuExtra>? danmakuController;

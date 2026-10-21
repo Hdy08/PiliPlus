@@ -46,6 +46,8 @@ import 'package:PiliPlus/plugin/pl_player/widgets/app_bar_ani.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/backward_seek.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/bottom_control.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/common_btn.dart';
+import 'package:PiliPlus/plugin/pl_player/widgets/danmaku_hover_exclusions.dart';
+import 'package:PiliPlus/plugin/pl_player/widgets/danmaku_hover_region.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/forward_seek.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/mpv_convert_webp.dart';
 import 'package:PiliPlus/plugin/pl_player/widgets/play_pause_btn.dart';
@@ -140,6 +142,11 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   final _playerKey = GlobalKey();
   final _progressBarKey = GlobalKey();
   final _compactProgressBarKey = GlobalKey();
+  final _videoSurfaceKey = GlobalKey();
+  final _hoverHeaderKey = GlobalKey();
+  final _hoverFooterKey = GlobalKey();
+  final _hoverLockKey = GlobalKey();
+  final _hoverScreenshotKey = GlobalKey();
   final _videoKey = GlobalKey();
 
   final RxDouble _brightnessValue = 0.0.obs;
@@ -302,7 +309,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       });
     }
 
-    if (plPlayerController.enableTapDm) {
+    if (PlatformUtils.isMobile && plPlayerController.enableTapDm) {
       _tapGestureRecognizer = ImmediateTapGestureRecognizer(
         onTapDown: plPlayerController.enableShowDanmaku.value
             ? _onTapDown
@@ -1199,7 +1206,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   LongPressGestureRecognizer? _longPressRecognizer;
   LongPressGestureRecognizer get longPressRecognizer => _longPressRecognizer ??=
       LongPressGestureRecognizer(
-          duration: plPlayerController.enableTapDm
+          duration: PlatformUtils.isMobile && plPlayerController.enableTapDm
               ? const Duration(milliseconds: 300)
               : null,
         )
@@ -1443,9 +1450,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     late final bufferedBarColor = primary.withValues(alpha: 0.4);
     final isLive = plPlayerController.isLive;
 
-    final child = Stack(
+    final videoSurface = Stack(
+      key: PlatformUtils.isDesktop ? _videoSurfaceKey : null,
       fit: StackFit.passthrough,
-      key: _playerKey,
       children: <Widget>[
         _videoWidget,
 
@@ -1466,8 +1473,16 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
               ),
             ),
           ),
+      ],
+    );
 
-        if (plPlayerController.enableTapDm)
+    final child = Stack(
+      fit: StackFit.passthrough,
+      key: _playerKey,
+      children: <Widget>[
+        videoSurface,
+
+        if (PlatformUtils.isMobile && plPlayerController.enableTapDm)
           Obx(
             () {
               if (!plPlayerController.enableShowDanmaku.value) {
@@ -1659,6 +1674,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   AppBarAni(
+                    key: PlatformUtils.isDesktop ? _hoverHeaderKey : null,
                     isTop: true,
                     controller: _animationController,
                     isFullScreen: isFullScreen,
@@ -1673,6 +1689,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                         : widget.headerControl,
                   ),
                   AppBarAni(
+                    key: PlatformUtils.isDesktop ? _hoverFooterKey : null,
                     isTop: false,
                     controller: _animationController,
                     isFullScreen: isFullScreen,
@@ -1868,6 +1885,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                     () => Offstage(
                       offstage: !plPlayerController.showControls.value,
                       child: DecoratedBox(
+                        key: PlatformUtils.isDesktop ? _hoverLockKey : null,
                         decoration: const BoxDecoration(
                           color: Color(0x45000000),
                           borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -1912,6 +1930,9 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                     child: Offstage(
                       offstage: !plPlayerController.showControls.value,
                       child: DecoratedBox(
+                        key: PlatformUtils.isDesktop
+                            ? _hoverScreenshotKey
+                            : null,
                         decoration: const BoxDecoration(
                           color: Color(0x45000000),
                           borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -2052,8 +2073,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       ],
     );
     if (PlatformUtils.isDesktop) {
-      return Obx(
-        () => MouseRegion(
+      return Obx(() {
+        Widget wrapControls(Widget content) => MouseRegion(
           cursor: !plPlayerController.showControls.value && isFullScreen
               ? SystemMouseCursors.none
               : MouseCursor.defer,
@@ -2061,9 +2082,50 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           onHover: (_) => plPlayerController.controls = true,
           onExit: (_) => plPlayerController.controls =
               widget.videoDetailController?.showSteinEdgeInfo.value ?? false,
-          child: child,
-        ),
-      );
+          child: content,
+        );
+        if (!plPlayerController.enableTapDm) return wrapControls(child);
+        return wrapControls(
+          DanmakuHoverRegion<DanmakuExtra>(
+            key: ValueKey((isLive, plPlayerController.cid)),
+            enabled:
+                plPlayerController.enableShowDanmakuAdaptive.value &&
+                plPlayerController.danmakuOpacity.value > 0 &&
+                !plPlayerController.controlsLock.value &&
+                !plPlayerController.isSeeking.value,
+            controller: () => plPlayerController.danmakuController,
+            size: Size(maxWidth, maxHeight),
+            danmakuOrigin: const Offset(0, 4),
+            layoutChanges: _animationController,
+            exclusionAreas: (surface, {forAction = false}) =>
+                danmakuHoverExclusions(
+                  surface: surface,
+                  content: _playerKey.currentContext?.findRenderObject(),
+                  video: _videoSurfaceKey.currentContext?.findRenderObject(),
+                  header: _hoverHeaderKey.currentContext?.findRenderObject(),
+                  footer: _hoverFooterKey.currentContext?.findRenderObject(),
+                  controlsVisible: forAction
+                      ? plPlayerController.showControls.value
+                      : null,
+                  sideControls: {
+                    _hoverLockKey.currentContext?.findRenderObject(): true,
+                    _hoverScreenshotKey.currentContext?.findRenderObject():
+                        false,
+                  },
+                ),
+            actionBuilder: (item, y, position, key, dismiss, obstacles) =>
+                _buildDmAction(
+                  item,
+                  position,
+                  trackY: y,
+                  actionKey: key,
+                  onDismiss: dismiss,
+                  obstacles: obstacles,
+                ),
+            child: child,
+          ),
+        );
+      });
     }
     return child;
   }
@@ -2281,12 +2343,13 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   Widget _dmActionItem(
     Widget child, {
     required Future<void>? Function() onTap,
+    VoidCallback? onDismiss,
   }) {
-    return GestureDetector(
+    final action = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () async {
         await onTap();
-        _removeDmAction();
+        (onDismiss ?? _removeDmAction)();
       },
       child: SizedBox(
         width: _actionItemWidth,
@@ -2296,15 +2359,21 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         ),
       ),
     );
+    return PlatformUtils.isDesktop
+        ? MouseRegion(cursor: SystemMouseCursors.click, child: action)
+        : action;
   }
 
   static final _timeRegExp = RegExp(r'(?:\d+[:：])?\d+[:：][0-5]?\d(?!\d)');
 
   int? _getValidOffset(String data) {
+    if (plPlayerController.isLive) return null;
     if (_timeRegExp.firstMatch(data) case final timeStr?) {
       final offset = DurationUtils.parseDuration(timeStr.group(0));
       if (0 < offset &&
-          offset * 1000 < videoDetailController.data.timeLength!) {
+          offset * 1000 <
+              (widget.videoDetailController?.data.timeLength ??
+                  plPlayerController.durationInMilliseconds)) {
         return offset;
       }
     }
@@ -2313,12 +2382,17 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
   Widget _buildDmAction(
     DanmakuItem<DanmakuExtra> item,
-    Offset offset,
-  ) {
+    Offset offset, {
+    double? trackY,
+    GlobalKey? actionKey,
+    VoidCallback? onDismiss,
+    Iterable<Rect> obstacles = const [],
+  }) {
+    final dismiss = onDismiss ?? _removeDmAction;
     final dx = offset.dx;
     // fullscreen
     if (dx > maxWidth) {
-      _removeDmAction();
+      dismiss();
       return const SizedBox.shrink();
     }
 
@@ -2326,7 +2400,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
     final overlayWidth = _actionItemWidth * (seekOffset == null ? 3 : 4);
 
-    final top = dy + item.height + _triangleHeight + 2;
+    final top = (trackY ?? dy) + item.height + _triangleHeight + 2;
 
     final realLeft = dx + overlayWidth / 2;
 
@@ -2337,19 +2411,39 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
     final right = maxWidth - left;
     final triangleOffset = realLeft - left;
+    final desktopPosition = onDismiss == null
+        ? null
+        : avoidDanmakuControls(
+            desktopDanmakuActionPosition(
+              Offset(dx, top),
+              Size(maxWidth, maxHeight),
+              Size(overlayWidth, _actionItemHeight),
+              aboveTop:
+                  (trackY ?? dy) - _actionItemHeight - _triangleHeight - 2,
+              obstacles: obstacles,
+            ),
+            Size(maxWidth, maxHeight),
+            Size(overlayWidth, _actionItemHeight),
+            obstacles,
+          );
+    if (onDismiss != null && desktopPosition == null) {
+      return const SizedBox.shrink();
+    }
 
-    if (right > (maxWidth - item.xPosition)) {
-      _removeDmAction();
+    if (onDismiss == null && right > (maxWidth - item.xPosition)) {
+      dismiss();
       return const SizedBox.shrink();
     }
 
     final extra = item.content.extra;
 
     return Positioned(
-      right: right,
-      top: top,
+      right: desktopPosition?.right ?? right,
+      top: desktopPosition?.top ?? top,
       child: _DanmakuTip(
-        offset: triangleOffset,
+        key: actionKey,
+        offset: desktopPosition?.triangleOffset ?? triangleOffset,
+        above: desktopPosition?.above ?? false,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -2360,6 +2454,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 clipBehavior: Clip.none,
                 children: [
                   _dmActionItem(
+                    onDismiss: onDismiss,
                     extra.isLike
                         ? const Icon(
                             size: 20,
@@ -2392,6 +2487,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
               ),
 
               _dmActionItem(
+                onDismiss: onDismiss,
                 const Icon(
                   size: 19,
                   CustomIcons.player_dm_tip_copy,
@@ -2401,6 +2497,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
               ),
               if (item.content.selfSend)
                 _dmActionItem(
+                  onDismiss: onDismiss,
                   const Icon(
                     size: 20,
                     CustomIcons.player_dm_tip_recall,
@@ -2413,6 +2510,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 )
               else
                 _dmActionItem(
+                  onDismiss: onDismiss,
                   const Icon(
                     size: 20,
                     CustomIcons.player_dm_tip_back,
@@ -2426,6 +2524,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 ),
               if (seekOffset != null)
                 _dmActionItem(
+                  onDismiss: onDismiss,
                   const Icon(
                     size: 18,
                     Icons.gps_fixed_outlined,
@@ -2439,6 +2538,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
             ],
             LiveDanmaku() => [
               _dmActionItem(
+                onDismiss: onDismiss,
                 const Icon(
                   size: 20,
                   MdiIcons.accountOutline,
@@ -2447,6 +2547,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 onTap: () => Get.toNamed('/member?mid=${extra.mid}'),
               ),
               _dmActionItem(
+                onDismiss: onDismiss,
                 const Icon(
                   size: 19,
                   CustomIcons.player_dm_tip_copy,
@@ -2455,6 +2556,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                 onTap: () => Utils.copyText(item.content.text),
               ),
               _dmActionItem(
+                onDismiss: onDismiss,
                 const Icon(
                   size: 20,
                   CustomIcons.player_dm_tip_back,

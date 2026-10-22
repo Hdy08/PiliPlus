@@ -144,7 +144,7 @@ extension ProgressBarPreview on ProgressBar {
           if (total <= 0 || width <= 0) return;
           final fraction = ((event.localPosition.dx - barHeight / 2) / width)
               .clamp(0.0, 1.0);
-          controller.updateHoverPreview((fraction * total).round());
+          controller.updateHoverPreview(fraction);
         }
 
         return MouseRegion(

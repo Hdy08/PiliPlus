@@ -1,11 +1,17 @@
 part of 'view.dart';
 
 class SeekPreviewLayout extends SingleChildLayoutDelegate {
-  const SeekPreviewLayout(this.bar, this.fraction, this.obstructionHeight);
+  const SeekPreviewLayout(
+    this.bar,
+    this.fraction,
+    this.obstructionHeight, {
+    this.hoverFraction,
+  }) : super(relayout: hoverFraction);
 
   final Rect bar;
   final double fraction;
   final double obstructionHeight;
+  final ValueListenable<double>? hoverFraction;
 
   double _bottom(Size size) =>
       (math.min(bar.top, bar.bottom - obstructionHeight) - 8).clamp(
@@ -25,7 +31,8 @@ class SeekPreviewLayout extends SingleChildLayoutDelegate {
     final x =
         bar.left +
         1.75 +
-        math.max(0.0, bar.width - 3.5) * fraction.clamp(0.0, 1.0);
+        math.max(0.0, bar.width - 3.5) *
+            (hoverFraction?.value ?? fraction).clamp(0.0, 1.0);
     final margin = math.min(8.0, math.max(0.0, size.width - childSize.width));
     return Offset(
       (x - childSize.width / 2).clamp(
@@ -40,6 +47,7 @@ class SeekPreviewLayout extends SingleChildLayoutDelegate {
   bool shouldRelayout(SeekPreviewLayout oldDelegate) =>
       bar != oldDelegate.bar ||
       fraction != oldDelegate.fraction ||
+      hoverFraction != oldDelegate.hoverFraction ||
       obstructionHeight != oldDelegate.obstructionHeight;
 }
 

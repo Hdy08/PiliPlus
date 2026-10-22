@@ -1415,21 +1415,26 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                   bar,
                   duration > 0 ? seconds / duration : 0,
                   obstruction,
+                  hoverFraction: hoverPosition == null
+                      ? null
+                      : plPlayerController.hoverFraction,
                 ),
                 child: child,
               );
             },
           ),
           child: IgnorePointer(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 8,
-                children: [
-                  if (plPlayerController.showPreview.value) preview,
-                  _buildSeekTime(seconds, duration),
-                ],
+            child: RepaintBoundary(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 8,
+                  children: [
+                    if (plPlayerController.showPreview.value) preview,
+                    _buildSeekTime(seconds, duration),
+                  ],
+                ),
               ),
             ),
           ),

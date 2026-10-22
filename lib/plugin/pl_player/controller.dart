@@ -55,7 +55,7 @@ import 'package:archive/archive.dart' show getCrc32;
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:collection/collection.dart' show lowerBound;
 import 'package:easy_debounce/easy_throttle.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show ValueNotifier, kDebugMode;
 import 'package:flutter/services.dart'
     show DeviceOrientation, HapticFeedback, KeyDownEvent, MethodChannel;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -1758,6 +1758,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     if (showSeekPreview || showHoverPreview) {
       _clearPreview();
     }
+    hoverFraction.dispose();
     if (Platform.isAndroid) {
       AndroidHelper$ToDart.onUserLeaveHint = null;
     } else if (Platform.isIOS) {
@@ -1833,9 +1834,10 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   late final showHoverPreview = Pref.showHoverPreview;
   late final seekPreviewPosition = Pref.seekPreviewPosition;
   final hoverPosition = RxnInt();
+  final hoverFraction = ValueNotifier(0.0);
   late final previewIndex = RxnInt();
 
-  void updateHoverPreview(int seconds) {
+  void updateHoverPreview(double fraction) {
     if (!showHoverPreview ||
         isSeeking.value ||
         controlsLock.value ||
@@ -1844,8 +1846,15 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         duration.value <= 0) {
       return;
     }
-    hoverPosition.value = seconds.clamp(0, duration.value);
-    updatePreviewIndex(hoverPosition.value!);
+    fraction = fraction.clamp(0.0, 1.0);
+    if (seekPreviewPosition == .aboveProgressBar) {
+      hoverFraction.value = fraction;
+    }
+    final seconds = (fraction * duration.value).round();
+    if (hoverPosition.value != seconds || !showPreview.value) {
+      hoverPosition.value = seconds;
+      updatePreviewIndex(seconds);
+    }
   }
 
   void endHoverPreview() {

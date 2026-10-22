@@ -8,10 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 class _HoverController extends Fake implements PlPlayerController {
   @override
   bool showHoverPreview = true;
-  final positions = <int>[];
+  final positions = <double>[];
   int exits = 0;
   @override
-  void updateHoverPreview(int seconds) => positions.add(seconds);
+  void updateHoverPreview(double fraction) => positions.add(fraction);
   @override
   void endHoverPreview() => exits++;
 }
@@ -46,14 +46,19 @@ void main() {
         final track = tester.getRect(find.byType(ProgressBar));
         final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
         await mouse.addPointer(location: Offset.zero);
-        for (final fraction in [0.0, 0.5, 1.0]) {
+        for (final fraction in [0.0, 0.5, 0.5001, 0.5002, 1.0]) {
           await mouse.moveTo(
-            Offset(track.left + 1 + 398 * fraction, track.center.dy),
+            Offset(track.left + 1.75 + 396.5 * fraction, track.center.dy),
           );
         }
         expect(
           controller.positions.toSet(),
-          enabled && total > 0 ? {0, 50, 100} : <int>{},
+          enabled && total > 0
+              ? unorderedMatches([
+                  for (final fraction in [0.0, 0.5, 0.5001, 0.5002, 1.0])
+                    closeTo(fraction, 1e-9),
+                ])
+              : isEmpty,
         );
         expect(
           tester
@@ -119,7 +124,7 @@ void main() {
     expect(animation.status, AnimationStatus.completed);
     await mouse.moveTo(Offset.zero);
     await mouse.moveTo(tester.getCenter(find.byType(ProgressBar)));
-    expect(controller.positions, contains(50));
+    expect(controller.positions, contains(0.5));
 
     controller.positions.clear();
     animation.reverse();

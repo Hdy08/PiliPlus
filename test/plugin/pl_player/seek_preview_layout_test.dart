@@ -6,6 +6,53 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets(
+    'sub-second hover movement relayouts without rebuilding content',
+    (
+      tester,
+    ) async {
+      final fraction = ValueNotifier(0.5);
+      addTearDown(fraction.dispose);
+      var builds = 0;
+      await tester.pumpWidget(
+        Center(
+          child: SizedBox(
+            width: 640,
+            height: 360,
+            child: CustomSingleChildLayout(
+              delegate: SeekPreviewLayout(
+                const Rect.fromLTWH(20, 300, 600, 14),
+                0.5,
+                35,
+                hoverFraction: fraction,
+              ),
+              child: Builder(
+                builder: (context) {
+                  builds++;
+                  return const SizedBox(width: 192, height: 146);
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      final panel = find.byType(Builder);
+      final start = tester.getRect(panel);
+      for (final value in [0.5001, 0.5002, 0.5003]) {
+        fraction.value = value;
+        await tester.pump();
+        final rect = tester.getRect(panel);
+        expect(
+          rect.center.dx - start.center.dx,
+          closeTo((value - 0.5) * 596.5, 1e-6),
+        );
+        expect(rect.top, start.top);
+        expect(builds, 1);
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
     'preview follows either track, clears charts and stays inside small players',
     (tester) async {
       const normal = Size(640, 360), small = Size(120, 90);

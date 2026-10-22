@@ -121,8 +121,7 @@ Widget _buildSeekTime(int seconds, int duration) {
 Widget buildSeekPreviewWidget(
   PlPlayerController plPlayerController,
   double maxWidth,
-  double maxHeight,
-  ValueGetter<bool> isMounted, {
+  double maxHeight, {
   bool centered = true,
 }) {
   return Obx(
@@ -148,8 +147,6 @@ Widget buildSeekPreviewWidget(
         final int imgXLen = data.imgXLen;
         final int imgYLen = data.imgYLen;
         final int totalPerImage = data.totalPerImage;
-        double imgXSize = data.imgXSize;
-        double imgYSize = data.imgYSize;
 
         return Align(
           alignment: Alignment.center,
@@ -164,23 +161,23 @@ Widget buildSeekPreviewWidget(
               );
               int align = index % totalPerImage;
               int x = align % imgXLen;
-              int y = align ~/ imgYLen;
+              int y = align ~/ imgXLen;
               final url = data.image[pageIndex];
 
               return ClipRRect(
                 borderRadius: Style.mdRadius,
                 child: VideoShotImage(
-                  url: url,
+                  image: CachedNetworkImageProvider(
+                    url,
+                    cacheManager: CacheManager.manager,
+                    headers: Constants.baseHeaders,
+                  ),
                   x: x,
                   y: y,
-                  imgXSize: imgXSize,
-                  imgYSize: imgYSize,
+                  columns: imgXLen,
+                  rows: imgYLen,
                   height: height,
-                  imageCache: plPlayerController.previewCache,
-                  onSetSize: (xSize, ySize) => data
-                    ..imgXSize = imgXSize = xSize
-                    ..imgYSize = imgYSize = ySize,
-                  isMounted: isMounted,
+                  onRetry: () => CacheManager.manager.removeFile(url),
                 ),
               );
             },
@@ -197,149 +194,108 @@ Widget buildSeekPreviewWidget(
 class VideoShotImage extends StatefulWidget {
   const VideoShotImage({
     super.key,
-    required this.imageCache,
-    required this.url,
+    required this.image,
     required this.x,
     required this.y,
-    required this.imgXSize,
-    required this.imgYSize,
+    required this.columns,
+    required this.rows,
     required this.height,
-    required this.onSetSize,
-    required this.isMounted,
-  });
+    this.onRetry,
+  }) : assert(columns > 0 && rows > 0);
 
-  final Map<String, ui.Image?> imageCache;
-  final String url;
+  final ImageProvider image;
   final int x;
   final int y;
-  final double imgXSize;
-  final double imgYSize;
+  final int columns;
+  final int rows;
   final double height;
-  final Function(double imgXSize, double imgYSize) onSetSize;
-  final ValueGetter<bool> isMounted;
+  final AsyncCallback? onRetry;
 
   @override
   State<VideoShotImage> createState() => _VideoShotImageState();
 }
 
-Future<ui.Image?> _getImg(String url) async {
-  final cacheKey = Utils.getFileName(url, fileExt: false);
-  try {
-    final fileInfo = await CacheManager.manager.getSingleFile(
-      ImageUtils.safeThumbnailUrl(url),
-      key: cacheKey,
-      headers: Constants.baseHeaders,
-    );
-    return await _loadImg(fileInfo.path);
-  } catch (_) {
-    return null;
-  }
-}
-
-Future<ui.Image?> _loadImg(String path) async {
-  final codec = await ui.instantiateImageCodecFromBuffer(
-    await ImmutableBuffer.fromFilePath(path),
-  );
-  final frame = await codec.getNextFrame();
-  codec.dispose();
-  return frame.image;
-}
-
 class _VideoShotImageState extends State<VideoShotImage> {
-  late Size _size;
-  late Rect _srcRect;
-  late Rect _dstRect;
-  late RRect _rrect;
-  ui.Image? _image;
+  ImageStream? _stream;
+  ImageProvider? _provider;
+  ImageInfo? _imageInfo;
+  Timer? _retryTimer;
+  bool _retried = false;
+  int _generation = 0;
+  late final _listener = ImageStreamListener(
+    (image, synchronousCall) {
+      _retryTimer?.cancel();
+      setState(() {
+        _imageInfo?.dispose();
+        _imageInfo = image;
+      });
+    },
+    onError: (Object error, StackTrace? stack) {
+      // One retry while visible; do not poll or keep retrying a broken CDN URL.
+      if (_imageInfo == null && !_retried) {
+        _retried = true;
+        _retryTimer = Timer(
+          const Duration(milliseconds: 500),
+          _retry,
+        );
+      }
+    },
+    reportErrors: false,
+  );
 
   @override
-  void initState() {
-    super.initState();
-    _initSize();
-    _loadImg();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveImage();
   }
 
-  void _initSizeIfNeeded() {
-    if (_size.width.isNaN) {
-      _initSize();
-    }
-  }
-
-  void _initSize() {
-    if (widget.imgXSize == 0) {
-      if (_image != null) {
-        final imgXSize = _image!.width / 10;
-        final imgYSize = _image!.height / 10;
-        final height = widget.height;
-        final width = height * imgXSize / imgYSize;
-        _setRect(width, height);
-        _setSrcRect(imgXSize, imgYSize);
-        widget.onSetSize(imgXSize, imgYSize);
-      } else {
-        _setRect(double.nan, double.nan);
-        _setSrcRect(widget.imgXSize, widget.imgYSize);
-      }
-    } else {
-      final height = widget.height;
-      final width = height * widget.imgXSize / widget.imgYSize;
-      _setRect(width, height);
-      _setSrcRect(widget.imgXSize, widget.imgYSize);
-    }
-  }
-
-  void _setRect(double width, double height) {
-    _size = Size(width, height);
-    _dstRect = Rect.fromLTRB(0, 0, width, height);
-    _rrect = RRect.fromRectAndRadius(_dstRect, const Radius.circular(10));
-  }
-
-  void _setSrcRect(double imgXSize, double imgYSize) {
-    _srcRect = Rect.fromLTWH(
-      widget.x * imgXSize,
-      widget.y * imgYSize,
-      imgXSize,
-      imgYSize,
+  void _resolveImage() {
+    // ImageCache shares pending loads and bounds decoded memory across previews.
+    // Decode for the largest preview at this pixel density, rather than a 4K sheet.
+    final provider = ResizeImage(
+      widget.image,
+      height: (108 * View.of(context).devicePixelRatio).ceil() * widget.rows,
+      policy: ResizeImagePolicy.fit,
     );
+    final stream = provider.resolve(createLocalImageConfiguration(context));
+    if (_stream?.key == stream.key) return;
+    _generation++;
+    _provider = provider;
+    _stream?.removeListener(_listener);
+    _imageInfo?.dispose();
+    _imageInfo = null;
+    _stream = stream..addListener(_listener);
   }
 
-  void _loadImg() {
-    final url = widget.url;
-    _image = widget.imageCache[url];
-    if (_image != null) {
-      _initSizeIfNeeded();
-    } else if (!widget.imageCache.containsKey(url)) {
-      widget.imageCache[url] = null;
-      _getImg(url).then((image) {
-        if (image != null) {
-          if (widget.isMounted()) {
-            widget.imageCache[url] = image;
-          }
-          if (mounted) {
-            _image = image;
-            _initSizeIfNeeded();
-            setState(() {});
-          }
-        } else {
-          widget.imageCache.remove(url);
-        }
-      });
-    }
+  Future<void> _retry() async {
+    final generation = _generation;
+    // A corrupt disk entry would otherwise fail on every retry and reopening.
+    try {
+      await widget.onRetry?.call();
+    } catch (_) {}
+    if (!mounted || generation != _generation || _imageInfo != null) return;
+    await _provider?.evict();
+    if (mounted && generation == _generation) setState(_resolveImage);
   }
 
   @override
   void didUpdateWidget(VideoShotImage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) {
-      _loadImg();
+    if (oldWidget.image != widget.image || oldWidget.rows != widget.rows) {
+      _generation++;
+      _retryTimer?.cancel();
+      _retried = false;
+      _resolveImage();
     }
-    if (oldWidget.height != widget.height ||
-        oldWidget.imgXSize != widget.imgXSize ||
-        oldWidget.imgYSize != widget.imgYSize) {
-      _initSize();
-    }
-    if (oldWidget.x != widget.x || oldWidget.y != widget.y) {
-      _setSrcRect(widget.imgXSize, widget.imgYSize);
-    }
+  }
+
+  @override
+  void dispose() {
+    _generation++;
+    _retryTimer?.cancel();
+    _stream?.removeListener(_listener);
+    _imageInfo?.dispose();
+    super.dispose();
   }
 
   late final _imgPaint = Paint()..filterQuality = FilterQuality.medium;
@@ -350,13 +306,23 @@ class _VideoShotImageState extends State<VideoShotImage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_image != null) {
+    if (_imageInfo case final imageInfo?) {
+      final image = imageInfo.image;
+      final tileWidth = image.width / widget.columns;
+      final tileHeight = image.height / widget.rows;
+      final size = Size(widget.height * tileWidth / tileHeight, widget.height);
+      final dstRect = Offset.zero & size;
       return CroppedImage(
-        size: _size,
-        image: _image!,
-        srcRect: _srcRect,
-        dstRect: _dstRect,
-        rrect: _rrect,
+        size: size,
+        image: image,
+        srcRect: Rect.fromLTWH(
+          widget.x * tileWidth,
+          widget.y * tileHeight,
+          tileWidth,
+          tileHeight,
+        ),
+        dstRect: dstRect,
+        rrect: RRect.fromRectAndRadius(dstRect, const Radius.circular(10)),
         imgPaint: _imgPaint,
         borderPaint: _borderPaint,
       );

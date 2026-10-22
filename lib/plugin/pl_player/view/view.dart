@@ -69,6 +69,8 @@ import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
+import 'package:cached_network_image_ce/cached_network_image.dart'
+    show CachedNetworkImageProvider;
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_debounce/easy_throttle.dart';
@@ -77,7 +79,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart'
     show RenderBox, RenderProxyBox, SemanticsConfiguration;
-import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -1357,7 +1358,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       plPlayerController,
       maxWidth,
       maxHeight,
-      () => mounted,
       centered: centered,
     );
     if (centered) return IgnorePointer(child: preview);

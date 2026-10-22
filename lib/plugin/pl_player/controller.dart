@@ -3,7 +3,6 @@ import 'dart:convert' show ascii, jsonDecode, utf8;
 import 'dart:ffi' show NativeCallable, Pointer, StructPointer, Void, nullptr;
 import 'dart:io' show Platform;
 import 'dart:math' show max, min;
-import 'dart:ui' as ui;
 
 import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/http/browser_ua.dart';
@@ -30,6 +29,7 @@ import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/plugin/pl_player/models/video_fit_type.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/danmaku_options.dart';
 import 'package:PiliPlus/plugin/pl_player/utils/fullscreen.dart';
+import 'package:PiliPlus/plugin/pl_player/utils/video_shot_loader.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/android/android_helper.dart';
@@ -53,6 +53,7 @@ import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:archive/archive.dart' show getCrc32;
 import 'package:canvas_danmaku/canvas_danmaku.dart';
+import 'package:collection/collection.dart' show lowerBound;
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart'
@@ -1371,6 +1372,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     showPreview.value = false;
     hasToasted = false;
     isSeeking.value = false;
+    if (showSeekPreview || showHoverPreview) _videoShotLoader.stopRetry();
     hideTaskControls();
   }
 
@@ -1812,15 +1814,26 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     }
   }
 
-  late final Map<String, ui.Image?> previewCache = {};
-  LoadingState<VideoShotData>? videoShot;
+  LoadingState<VideoShotData>? get videoShot => _videoShotLoader.state;
+  late final _videoShotLoader = VideoShotLoader(
+    fetch: () => VideoHttp.videoshot(bvid: bvid, cid: cid!),
+    isActive: () =>
+        (isSeeking.value && showSeekPreview && !hasToasted) ||
+        hoverPosition.value != null,
+    onLoaded: () {
+      if (isSeeking.value && showSeekPreview && !hasToasted) {
+        updatePreviewIndex(seekPosition.value);
+      } else if (hoverPosition.value case final seconds?) {
+        updatePreviewIndex(seconds);
+      }
+    },
+  );
   late final RxBool showPreview = false.obs;
   late final showSeekPreview = Pref.showSeekPreview;
   late final showHoverPreview = Pref.showHoverPreview;
   late final seekPreviewPosition = Pref.seekPreviewPosition;
   final hoverPosition = RxnInt();
   late final previewIndex = RxnInt();
-  int _previewGeneration = 0;
 
   void updateHoverPreview(int seconds) {
     if (!showHoverPreview ||
@@ -1838,49 +1851,33 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   void endHoverPreview() {
     if (hoverPosition.value == null) return;
     hoverPosition.value = null;
-    if (!isSeeking.value) showPreview.value = false;
+    if (!isSeeking.value) {
+      showPreview.value = false;
+      _videoShotLoader.stopRetry();
+    }
     hideTaskControls();
   }
 
   void updatePreviewIndex(int seconds) {
-    if (videoShot == null) {
-      videoShot = LoadingState.loading();
-      getVideoShot();
-      return;
-    }
+    _videoShotLoader.load();
     if (videoShot case Success(:final response)
-        when response.image.isNotEmpty && response.index.isNotEmpty) {
+        when response.image.isNotEmpty &&
+            response.index.isNotEmpty &&
+            response.imgXLen > 0 &&
+            response.imgYLen > 0) {
       previewIndex.value = max(
         0,
-        (response.index.where((item) => item <= seconds).length - 2),
-      );
+        lowerBound(response.index, seconds + 1) - 2,
+      ).clamp(0, response.image.length * response.totalPerImage - 1);
       showPreview.value = true;
     }
   }
 
   void _clearPreview() {
-    _previewGeneration++;
+    _videoShotLoader.clear();
     hoverPosition.value = null;
     showPreview.value = false;
     previewIndex.value = null;
-    videoShot = null;
-    for (final i in previewCache.values) {
-      i?.dispose();
-    }
-    previewCache.clear();
-  }
-
-  Future<void> getVideoShot() async {
-    final generation = _previewGeneration;
-    final result = await VideoHttp.videoshot(bvid: bvid, cid: cid!);
-    if (generation != _previewGeneration) return;
-    videoShot = result;
-    // A stationary pointer still needs a preview once the request finishes.
-    if (isSeeking.value && showSeekPreview && !hasToasted) {
-      updatePreviewIndex(seekPosition.value);
-    } else if (hoverPosition.value case final seconds?) {
-      updatePreviewIndex(seconds);
-    }
   }
 
   int _screenshotState = 0;

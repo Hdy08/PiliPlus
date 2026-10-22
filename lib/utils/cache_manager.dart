@@ -26,6 +26,10 @@ abstract final class CacheManager {
 
   static Future<void> ensureInitialized() => DefaultCacheManager.init(
     maxNrOfCacheLength: Pref.maxCacheSize.toInt(),
+    connectionParameters: ConnectionParameters(
+      connectionTimeout: const Duration(seconds: 10),
+      requestTimeout: const Duration(seconds: 15),
+    ),
     cacheDirectoryProvider: _cacheDirectoryProvider,
   ).then((i) => manager = i);
 

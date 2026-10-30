@@ -48,6 +48,7 @@ class _CreateReservePageState extends State<CreateReservePage> {
       const SizedBox(height: 10),
     ];
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(title: const Text('添加直播预约')),
       body: ListView(
         padding: EdgeInsets.only(

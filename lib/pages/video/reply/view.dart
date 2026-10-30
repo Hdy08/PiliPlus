@@ -70,6 +70,7 @@ class _VideoReplyPanelState extends State<VideoReplyPanel>
     super.build(context);
     return fabAnimWrapper(
       child: refreshIndicator(
+        showBackToTop: false,
         onRefresh: _videoReplyController.onRefresh,
         isClampingScrollPhysics: widget.isNested,
         child: ScaffoldLayout(

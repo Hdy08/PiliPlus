@@ -516,6 +516,7 @@ class _LoginPageState extends State<LoginPage> {
         const EdgeInsets.only(bottom: 25);
     final isLandscape = !MediaQuery.sizeOf(context).isPortrait;
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(
         leading: IconButton(
           tooltip: '关闭',

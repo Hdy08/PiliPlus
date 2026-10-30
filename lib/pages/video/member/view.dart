@@ -1,6 +1,7 @@
 import 'package:PiliPlus/common/skeleton/video_card_h.dart';
 import 'package:PiliPlus/common/sliver_single_child_delegate.dart';
 import 'package:PiliPlus/common/style.dart';
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart'
     show displacement;
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -88,8 +89,10 @@ class _HorizontalMemberPageState extends State<HorizontalMemberPage> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      child: Obx(
-        () => _buildUserPage(_controller.userState.value),
+      child: BackToTop(
+        child: Obx(
+          () => _buildUserPage(_controller.userState.value),
+        ),
       ),
     );
   }

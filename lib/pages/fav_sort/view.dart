@@ -48,6 +48,7 @@ class _FavSortPageState extends State<FavSortPage> with ReorderMixin {
   @override
   Widget build(BuildContext context) {
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(
         title: Text('排序: ${_favDetailController.folderInfo.value.title}'),
         actions: [

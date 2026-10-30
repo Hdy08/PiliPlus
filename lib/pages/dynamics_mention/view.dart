@@ -172,6 +172,7 @@ class _DynMentionPanelState
         ),
         Expanded(
           child: ScaffoldLayout(
+            showBackToTop: false,
             body: NotificationListener<ScrollNotification>(
               onNotification: (notification) {
                 if (notification is UserScrollNotification) {

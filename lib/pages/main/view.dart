@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:PiliPlus/common/style.dart';
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/floating_navigation_bar.dart';
 import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -346,6 +347,17 @@ class _MainAppState extends PopScopeState<MainApp>
         child: _sideBar(),
       );
       padding = .only(top: _padding.top, right: _padding.right);
+    }
+
+    if (bottomNav != null) {
+      child = BackToTopInset(
+        bottom: _mainController.floatingNavBar
+            ? 72
+            : _mainController.enableMYBar
+            ? NavigationBarTheme.of(context).height ?? 80
+            : kBottomNavigationBarHeight,
+        child: child,
+      );
     }
 
     child = Material(

@@ -439,6 +439,7 @@ class _LiveRoomPageState extends State<LiveRoomPage>
               },
             ),
           ScaffoldLayout(
+            showBackToTop: false,
             appBar: isWindowMode && isFullScreen && !isPortrait
                 ? null
                 : _buildAppBar(isFullScreen),

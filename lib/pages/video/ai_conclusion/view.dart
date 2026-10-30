@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/gesture/tap_gesture_recognizer.dart';
 import 'package:PiliPlus/models_new/video/video_ai_conclusion/model_result.dart';
 import 'package:PiliPlus/pages/common/slide/common_slide_page.dart';
@@ -157,7 +158,9 @@ class _AiDetailState extends State<AiConclusionPanel>
             ),
           ),
           Expanded(
-            child: enableSlide ? slideList(theme) : buildList(theme),
+            child: BackToTop(
+              child: enableSlide ? slideList(theme) : buildList(theme),
+            ),
           ),
         ],
       ),

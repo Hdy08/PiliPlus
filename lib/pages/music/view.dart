@@ -58,11 +58,13 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
   Widget build(BuildContext context) {
     return fabAnimWrapper(
       child: SimpleScaffold(
+        showBackToTop: false,
         appBar: _buildAppBar(),
         body: Padding(
           padding: EdgeInsets.only(left: padding.left, right: padding.right),
           child: isPortrait
               ? refreshIndicator(
+                  showBackToTop: false,
                   onRefresh: controller.onRefresh,
                   child: _buildBody(),
                 )

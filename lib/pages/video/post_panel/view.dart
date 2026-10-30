@@ -254,6 +254,7 @@ class _PostPanelState extends State<PostPanel>
   @override
   Widget buildPage(ThemeData theme) {
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: SizedBox(
         height: 45,
         child: Row(

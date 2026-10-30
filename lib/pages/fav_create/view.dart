@@ -81,6 +81,7 @@ class _CreateFavPageState extends State<CreateFavPage> {
   @override
   Widget build(BuildContext context) {
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(
         title: Text(_mediaId != null ? '编辑' : '创建'),
         actions: [

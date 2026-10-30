@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/style.dart';
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/image/image_save.dart';
@@ -226,7 +227,11 @@ class _EpisodePanelState extends State<EpisodePanel>
               dividerHeight: 1,
               dividerColor: theme.dividerColor.withValues(alpha: 0.1),
             ),
-          Expanded(child: enableSlide ? slideList(theme) : buildList(theme)),
+          Expanded(
+            child: BackToTop(
+              child: enableSlide ? slideList(theme) : buildList(theme),
+            ),
+          ),
         ],
       ),
     );

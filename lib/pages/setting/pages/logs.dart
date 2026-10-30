@@ -2,6 +2,7 @@ import 'dart:async' show Timer;
 import 'dart:convert' show jsonDecode;
 
 import 'package:PiliPlus/common/constants.dart';
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
 import 'package:PiliPlus/common/widgets/selection_text.dart';
@@ -157,34 +158,36 @@ class _LogsPageState extends State<LogsPage> {
           const SizedBox(width: 6),
         ],
       ),
-      body: logsContent.isNotEmpty || _deviceInfo != null
-          ? Padding(
-              padding: EdgeInsets.only(
-                left: padding.left + 12,
-                right: padding.right + 12,
-              ),
-              child: CustomScrollView(
-                slivers: [
-                  if (_deviceInfo != null)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const .only(bottom: 12),
-                        child: _InfoCard(info: _deviceInfo!),
+      body: BackToTop(
+        child: logsContent.isNotEmpty || _deviceInfo != null
+            ? Padding(
+                padding: EdgeInsets.only(
+                  left: padding.left + 12,
+                  right: padding.right + 12,
+                ),
+                child: CustomScrollView(
+                  slivers: [
+                    if (_deviceInfo != null)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const .only(bottom: 12),
+                          child: _InfoCard(info: _deviceInfo!),
+                        ),
+                      ),
+                    SliverPadding(
+                      padding: EdgeInsets.only(bottom: padding.bottom + 100),
+                      sliver: SliverList.separated(
+                        itemCount: logsContent.length,
+                        itemBuilder: (context, index) =>
+                            _ReportCard(report: logsContent[index]),
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
                       ),
                     ),
-                  SliverPadding(
-                    padding: EdgeInsets.only(bottom: padding.bottom + 100),
-                    sliver: SliverList.separated(
-                      itemCount: logsContent.length,
-                      itemBuilder: (context, index) =>
-                          _ReportCard(report: logsContent[index]),
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : scrollableError,
+                  ],
+                ),
+              )
+            : scrollableError,
+      ),
     );
   }
 }

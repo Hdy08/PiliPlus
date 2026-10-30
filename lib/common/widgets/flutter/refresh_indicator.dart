@@ -6,6 +6,7 @@
 
 import 'dart:async' show Completer;
 
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/refresh_layout.dart';
 import 'package:PiliPlus/common/widgets/scroll_behavior.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart'
@@ -152,6 +153,7 @@ class RefreshIndicator extends StatefulWidget {
     this.strokeWidth = RefreshProgressIndicator.defaultStrokeWidth,
     this.elevation = 2.0,
     this.isClampingScrollPhysics = false,
+    this.showBackToTop = true,
     required this.child,
   }) : assert(elevation >= 0.0);
 
@@ -210,6 +212,7 @@ class RefreshIndicator extends StatefulWidget {
   final double elevation;
 
   final bool isClampingScrollPhysics;
+  final bool showBackToTop;
 
   @override
   RefreshIndicatorState createState() => RefreshIndicatorState();
@@ -533,6 +536,10 @@ class RefreshIndicatorState extends State<RefreshIndicator>
               ),
             ),
     );
+
+    if (widget.showBackToTop) {
+      child = BackToTop(child: child);
+    }
 
     if (PlatformUtils.isDarwin) {
       if (widget.isClampingScrollPhysics) {

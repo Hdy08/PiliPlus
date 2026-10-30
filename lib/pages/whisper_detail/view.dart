@@ -60,6 +60,7 @@ class _WhisperDetailPageState
       1,
     );
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(
         title: GestureDetector(
           behavior: HitTestBehavior.opaque,

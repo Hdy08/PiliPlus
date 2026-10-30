@@ -29,6 +29,7 @@ class _FavFolderSortPageState extends State<FavFolderSortPage>
   @override
   Widget build(BuildContext context) {
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(
         title: const Text('收藏夹排序'),
         actions: [

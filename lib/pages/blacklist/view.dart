@@ -70,6 +70,7 @@ class _BlackListPageState extends State<BlackListPage>
   @override
   Widget build(BuildContext context) {
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(title: const Text('黑名单管理')),
       body: Column(
         children: [

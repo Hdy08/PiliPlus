@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:PiliPlus/common/style.dart';
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/button/more_btn.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart'
@@ -61,7 +62,7 @@ class _MemberHomeState extends State<MemberHome>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return _buildBody(_ctr.loadingState.value);
+    return BackToTop(child: _buildBody(_ctr.loadingState.value));
   }
 
   late final gridDelegateV = SliverGridDelegateWithExtentAndRatio(

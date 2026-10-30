@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/slotted_layout_helper.dart';
 import 'package:flutter/rendering.dart' show ChildLayoutHelper;
 import 'package:material_ui/material_ui.dart';
@@ -10,6 +11,7 @@ class SimpleScaffold extends StatelessWidget {
     this.backgroundColor,
     this.fab,
     this.appBar,
+    this.showBackToTop = true,
     required this.body,
   });
 
@@ -17,6 +19,7 @@ class SimpleScaffold extends StatelessWidget {
   final Widget? fab;
   final Widget? appBar;
   final Widget body;
+  final bool showBackToTop;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +29,7 @@ class SimpleScaffold extends StatelessWidget {
         fab: fab,
         appBar: appBar,
         body: body,
+        showBackToTop: showBackToTop,
       ),
     );
   }
@@ -33,14 +37,37 @@ class SimpleScaffold extends StatelessWidget {
 
 enum ScaffoldType { fab, appBar, body }
 
-class ScaffoldLayout
-    extends SlottedMultiChildRenderObjectWidget<ScaffoldType, RenderBox> {
+class ScaffoldLayout extends StatelessWidget {
   const ScaffoldLayout({
     super.key,
     this.fab,
     this.appBar,
+    this.showBackToTop = true,
     required this.body,
   });
+
+  final Widget? fab;
+  final Widget? appBar;
+  final Widget body;
+  final bool showBackToTop;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!showBackToTop) {
+      return _ScaffoldLayout(appBar: appBar, body: body, fab: fab);
+    }
+    return BackToTop(
+      fab: fab,
+      layoutBuilder: (body, fab) =>
+          _ScaffoldLayout(appBar: appBar, body: body, fab: fab),
+      child: body,
+    );
+  }
+}
+
+class _ScaffoldLayout
+    extends SlottedMultiChildRenderObjectWidget<ScaffoldType, RenderBox> {
+  const _ScaffoldLayout({this.fab, this.appBar, required this.body});
 
   final Widget? fab;
   final Widget? appBar;

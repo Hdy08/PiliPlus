@@ -196,6 +196,8 @@ class _MemberVideoState extends State<MemberVideo>
     }
     return refreshIndicator(
       key: _controller.refreshKey,
+      showBackToTop:
+          !(_controller.isVideo && _controller.fromViewAid?.isNotEmpty == true),
       isClampingScrollPhysics: true,
       onRefresh: _onRefresh,
       child: child,

@@ -130,6 +130,7 @@ class _BubblePageState extends State<BubblePage>
       );
     }
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(
         title: Obx(() {
           final tribeName = _controller.tribeName.value;

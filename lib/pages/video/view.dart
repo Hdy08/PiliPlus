@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:PiliPlus/common/assets.dart';
 import 'package:PiliPlus/common/style.dart';
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -502,6 +503,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       () {
         final isFullScreen = this.isFullScreen;
         return SimpleScaffold(
+          showBackToTop: false,
           appBar: removeAppBar(isFullScreen)
               ? null
               : Obx(
@@ -765,6 +767,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     () {
       final isFullScreen = this.isFullScreen;
       return SimpleScaffold(
+        showBackToTop: false,
         appBar: removeAppBar(isFullScreen)
             ? null
             : SimpleAppBar(
@@ -1012,16 +1015,20 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                           localIntroPanel()
                         else if (showIntro)
                           KeepAliveWrapper(
-                            child: CustomScrollView(
-                              key: const PageStorageKey(CommonIntroController),
-                              controller:
-                                  videoDetailController.effectiveIntroScrollCtr,
-                              slivers: [
-                                RelatedVideoPanel(
-                                  key: videoRelatedKey,
-                                  heroTag: heroTag,
+                            child: BackToTop(
+                              child: CustomScrollView(
+                                key: const PageStorageKey(
+                                  CommonIntroController,
                                 ),
-                              ],
+                                controller: videoDetailController
+                                    .effectiveIntroScrollCtr,
+                                slivers: [
+                                  RelatedVideoPanel(
+                                    key: videoRelatedKey,
+                                    heroTag: heroTag,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         if (videoDetailController.showReply) videoReplyPanel(),
@@ -1041,6 +1048,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   Widget get childWhenDisabledAlmostSquare => Obx(() {
     final isFullScreen = this.isFullScreen;
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: removeAppBar(isFullScreen)
           ? null
           : SimpleAppBar(
@@ -1664,21 +1672,23 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   Widget localIntroPanel({
     bool needCtr = true,
   }) {
-    return CustomScrollView(
-      controller: needCtr
-          ? videoDetailController.effectiveIntroScrollCtr
-          : null,
-      physics: !needCtr ? platformAlwaysClampingPhysics : null,
-      key: const PageStorageKey(CommonIntroController),
-      slivers: [
-        SliverPadding(
-          padding: EdgeInsets.only(top: 7, bottom: padding.bottom + 100),
-          sliver: LocalIntroPanel(
-            key: videoRelatedKey,
-            heroTag: heroTag,
+    return BackToTop(
+      child: CustomScrollView(
+        controller: needCtr
+            ? videoDetailController.effectiveIntroScrollCtr
+            : null,
+        physics: !needCtr ? platformAlwaysClampingPhysics : null,
+        key: const PageStorageKey(CommonIntroController),
+        slivers: [
+          SliverPadding(
+            padding: EdgeInsets.only(top: 7, bottom: padding.bottom + 100),
+            sliver: LocalIntroPanel(
+              key: videoRelatedKey,
+              heroTag: heroTag,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1747,7 +1757,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       ],
     );
 
+    child = BackToTop(child: child);
     if (videoDetailController.isPlayAll) {
+      child = BackToTopInset(bottom: 80, child: child);
       child = IntroLayout(
         body: child,
         playlist: Padding(

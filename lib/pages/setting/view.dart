@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/widgets/back_to_top.dart';
 import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/common/widgets/flutter/list_tile.dart';
 import 'package:PiliPlus/common/widgets/scaffold/simple_scaffold.dart';
@@ -110,18 +111,19 @@ class _SettingPageState extends State<SettingPage> {
   @override
   Widget build(BuildContext context) {
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(
         title: _isPortrait ? const Text('设置') : Text(_type.title),
       ),
       body: ViewSafeArea(
         child: _isPortrait
-            ? _buildList(theme)
+            ? BackToTop(child: _buildList(theme))
             : Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     flex: 4,
-                    child: _buildList(theme),
+                    child: BackToTop(child: _buildList(theme)),
                   ),
                   VerticalDivider(
                     width: 1,

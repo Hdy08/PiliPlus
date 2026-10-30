@@ -55,6 +55,7 @@ class _CreateVotePageState extends State<CreateVotePage> {
       color: theme.colorScheme.outline.withValues(alpha: 0.1),
     );
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(
         title: Text('${_controller.voteId != null ? '' : '发起'}投票'),
       ),

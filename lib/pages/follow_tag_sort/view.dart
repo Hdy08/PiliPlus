@@ -38,6 +38,7 @@ class _FollowTagSortPageState extends State<FollowTagSortPage>
   @override
   Widget build(BuildContext context) {
     return SimpleScaffold(
+      showBackToTop: false,
       appBar: AppBar(
         title: const Text('关注分组排序'),
         actions: _customTags.isNotEmpty

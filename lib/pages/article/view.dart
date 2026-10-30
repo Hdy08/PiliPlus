@@ -20,6 +20,7 @@ import 'package:PiliPlus/pages/article/widgets/opus_content.dart';
 import 'package:PiliPlus/pages/article/widgets/sliver_list_ext.dart';
 import 'package:PiliPlus/pages/article/widgets/sliver_to_box_adapter.dart';
 import 'package:PiliPlus/pages/common/dyn/common_dyn_page.dart';
+import 'package:PiliPlus/pages/common/fab_mixin.dart' show FabSlideTransition;
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/extension/get_ext.dart';
@@ -75,12 +76,13 @@ class _ArticlePageState extends CommonDynPageState<ArticlePage>
   Widget build(BuildContext context) {
     return fabAnimWrapper(
       child: SimpleScaffold(
+        fabAnimation: fabAnimation,
         appBar: _buildAppBar(),
         body: Padding(
           padding: .only(left: padding.left, right: padding.right),
           child: _buildPage(),
         ),
-        fab: SlideTransition(
+        fab: FabSlideTransition(
           position: fabAnimation,
           child: _buildBottom(),
         ),

@@ -6,6 +6,7 @@ import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models_new/match/match_info/contest.dart';
 import 'package:PiliPlus/pages/common/dyn/common_dyn_page.dart';
+import 'package:PiliPlus/pages/common/fab_mixin.dart' show FabSlideTransition;
 import 'package:PiliPlus/pages/match_info/controller.dart';
 import 'package:PiliPlus/pages/match_info/widgets/match_info_item.dart';
 import 'package:PiliPlus/pages/video/reply_reply/view.dart';
@@ -35,6 +36,7 @@ class _MatchInfoPageState extends CommonDynPageState<MatchInfoPage> {
   Widget build(BuildContext context) {
     return fabAnimWrapper(
       child: SimpleScaffold(
+        fabAnimation: fabAnimation,
         appBar: AppBar(title: const Text('比赛详情')),
         body: ViewSafeArea(
           child: refreshIndicator(
@@ -49,7 +51,7 @@ class _MatchInfoPageState extends CommonDynPageState<MatchInfoPage> {
             ),
           ),
         ).constraintWidth(),
-        fab: SlideTransition(
+        fab: FabSlideTransition(
           position: fabAnimation,
           child: fabButton,
         ),

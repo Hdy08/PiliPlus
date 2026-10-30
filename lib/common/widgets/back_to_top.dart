@@ -11,11 +11,13 @@ class BackToTop extends StatefulWidget {
     super.key,
     required this.child,
     this.fab,
+    this.fabAnimation,
     this.layoutBuilder,
   });
 
   final Widget child;
   final Widget? fab;
+  final Animation<Offset>? fabAnimation;
   final BackToTopLayoutBuilder? layoutBuilder;
 
   @override
@@ -132,7 +134,7 @@ class _BackToTopState extends State<BackToTop>
     if (notification.metrics is PageMetrics) {
       if (notification is ScrollEndNotification) {
         _activeScrollable = null;
-        showFab();
+        if (widget.fabAnimation == null) showFab();
         _scheduleUpdate();
       }
       return false;
@@ -141,7 +143,7 @@ class _BackToTopState extends State<BackToTop>
     final scrollable = _register(notification.context);
     if (scrollable == null) return false;
     _activeScrollable = scrollable;
-    if (notification is UserScrollNotification) {
+    if (notification is UserScrollNotification && widget.fabAnimation == null) {
       if (notification.metrics.axisDirection == AxisDirection.up) {
         switch (notification.direction) {
           case .forward:
@@ -187,7 +189,7 @@ class _BackToTopState extends State<BackToTop>
         curve: Curves.easeInOut,
       );
     }
-    showFab();
+    if (widget.fabAnimation == null) showFab();
   }
 
   Widget _layout(Widget body, Widget? fab) {
@@ -225,34 +227,32 @@ class _BackToTopState extends State<BackToTop>
       ValueListenableBuilder(
         valueListenable: _canScroll,
         child: widget.fab,
-        builder: (context, canScroll, fab) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (canScroll && !keyboardVisible)
-              ClipRect(
-                child: SlideTransition(
-                  position: fabAnimation,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: kFloatingActionButtonMargin,
-                      top: kFloatingActionButtonMargin,
-                      right: kFloatingActionButtonMargin + padding.right,
-                      bottom:
-                          kFloatingActionButtonMargin +
-                          (fab == null ? padding.bottom + bottomInset : 0),
-                    ),
-                    child: FloatingActionButton(
-                      heroTag: null,
-                      tooltip: '回到顶部',
-                      onPressed: _toTop,
-                      child: const Icon(Icons.vertical_align_top),
-                    ),
+        builder: (context, canScroll, fab) => FabSlideTransition.group(
+          position: widget.fabAnimation ?? fabAnimation,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (canScroll && !keyboardVisible)
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: kFloatingActionButtonMargin,
+                    top: kFloatingActionButtonMargin,
+                    right: kFloatingActionButtonMargin + padding.right,
+                    bottom:
+                        kFloatingActionButtonMargin +
+                        (fab == null ? padding.bottom + bottomInset : 0),
+                  ),
+                  child: FloatingActionButton(
+                    heroTag: null,
+                    tooltip: '回到顶部',
+                    onPressed: _toTop,
+                    child: const Icon(Icons.vertical_align_top),
                   ),
                 ),
-              ),
-            ?fab,
-          ],
+              ?fab,
+            ],
+          ),
         ),
       ),
     );

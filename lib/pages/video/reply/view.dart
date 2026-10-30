@@ -74,6 +74,7 @@ class _VideoReplyPanelState extends State<VideoReplyPanel>
         onRefresh: _videoReplyController.onRefresh,
         isClampingScrollPhysics: widget.isNested,
         child: ScaffoldLayout(
+          fabAnimation: fabAnimation,
           body: CustomScrollView(
             controller: widget.isNested
                 ? null
@@ -118,7 +119,7 @@ class _VideoReplyPanelState extends State<VideoReplyPanel>
               Obx(() => _buildBody(_videoReplyController.loadingState.value)),
             ],
           ),
-          fab: SlideTransition(
+          fab: FabSlideTransition(
             position: fabAnimation,
             child: Padding(
               padding: .only(

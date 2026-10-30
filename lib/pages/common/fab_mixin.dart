@@ -1,5 +1,40 @@
 import 'package:material_ui/material_ui.dart';
 
+class FabSlideTransition extends StatelessWidget {
+  const FabSlideTransition({
+    super.key,
+    required this.position,
+    required this.child,
+  });
+
+  final Animation<Offset> position;
+  final Widget child;
+
+  static Widget group({
+    required Animation<Offset> position,
+    required Widget child,
+  }) => _FabGroupScope(
+    child: ClipRect(
+      child: SlideTransition(position: position, child: child),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.dependOnInheritedWidgetOfExactType<_FabGroupScope>() != null) {
+      return child;
+    }
+    return SlideTransition(position: position, child: child);
+  }
+}
+
+class _FabGroupScope extends InheritedWidget {
+  const _FabGroupScope({required super.child});
+
+  @override
+  bool updateShouldNotify(_FabGroupScope oldWidget) => false;
+}
+
 mixin BaseFabMixin<T extends StatefulWidget> on State<T>, TickerProvider {
   late bool _isFabVisible = true;
   AnimationController get fabAnimationCtr;

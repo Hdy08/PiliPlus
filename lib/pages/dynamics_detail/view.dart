@@ -24,6 +24,7 @@ import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/reply/reply_option_type.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/pages/common/dyn/common_dyn_page.dart';
+import 'package:PiliPlus/pages/common/fab_mixin.dart' show FabSlideTransition;
 import 'package:PiliPlus/pages/common/dyn/like_list/controller.dart';
 import 'package:PiliPlus/pages/common/dyn/like_list/view.dart';
 import 'package:PiliPlus/pages/common/dyn/repost_list/controller.dart';
@@ -111,12 +112,13 @@ class _DynamicDetailPageState extends CommonDynPageMultiState<DynamicDetailPage>
       /// apply `lib/scripts/scrollable.patch`
       isScrolling: () => _scrollable?.shouldIgnorePointer ?? false,
       child: SimpleScaffold(
+        fabAnimation: fabAnimation,
         appBar: _buildAppBar(),
         body: Padding(
           padding: EdgeInsets.only(left: padding.left, right: padding.right),
           child: _buildBody(),
         ),
-        fab: SlideTransition(
+        fab: FabSlideTransition(
           position: fabAnimation,
           child: _buildBottom(),
         ),

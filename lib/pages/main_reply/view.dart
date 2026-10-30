@@ -61,6 +61,7 @@ class _MainReplyPageState extends State<MainReplyPage>
   @override
   Widget build(BuildContext context) {
     return SimpleScaffold(
+      fabAnimation: fabAnimation,
       appBar: AppBar(title: const Text('查看评论')),
       body: fabAnimWrapper(
         child: refreshIndicator(
@@ -80,7 +81,7 @@ class _MainReplyPageState extends State<MainReplyPage>
           ),
         ).constraintWidth(),
       ),
-      fab: SlideTransition(
+      fab: FabSlideTransition(
         position: fabAnimation,
         child: Padding(
           padding: .only(

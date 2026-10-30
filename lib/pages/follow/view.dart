@@ -61,6 +61,7 @@ class _FollowPageState extends State<FollowPage>
   Widget build(BuildContext context) {
     final padding = MediaQuery.viewPaddingOf(context);
     return SimpleScaffold(
+      fabAnimation: _followController.isOwner ? fabAnimation : null,
       appBar: _buildAppBar,
       body: _followController.isOwner
           ? fabAnimWrapper(
@@ -68,7 +69,7 @@ class _FollowPageState extends State<FollowPage>
             )
           : _childPage(),
       fab: _followController.isOwner
-          ? SlideTransition(
+          ? FabSlideTransition(
               position: fabAnimation,
               child: Padding(
                 padding: .only(

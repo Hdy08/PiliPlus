@@ -151,10 +151,11 @@ class _MemberVideoState extends State<MemberVideo>
     );
     if (_controller.isVideo && _controller.fromViewAid?.isNotEmpty == true) {
       child = ScaffoldLayout(
+        fabAnimation: fabAnimation,
         body: fabAnimWrapper(child: child),
         fab: Obx(
           () => !_controller.isLocating
-              ? SlideTransition(
+              ? FabSlideTransition(
                   position: fabAnimation,
                   child: Padding(
                     padding: .only(

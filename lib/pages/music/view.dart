@@ -17,6 +17,7 @@ import 'package:PiliPlus/models/common/image_preview_type.dart';
 import 'package:PiliPlus/models/common/image_type.dart';
 import 'package:PiliPlus/models_new/music/bgm_detail.dart';
 import 'package:PiliPlus/pages/common/dyn/common_dyn_page.dart';
+import 'package:PiliPlus/pages/common/fab_mixin.dart' show FabSlideTransition;
 import 'package:PiliPlus/pages/music/controller.dart';
 import 'package:PiliPlus/pages/music/video/view.dart';
 import 'package:PiliPlus/utils/accounts.dart';
@@ -195,6 +196,7 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
           );
         }
         return ScaffoldLayout(
+          fabAnimation: fabAnimation,
           body: child,
           fab: _buildBottom(response),
         );
@@ -207,7 +209,7 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
     if (!controller.showDynActionBar) {
       return Padding(
         padding: const .only(right: kFloatingActionButtonMargin),
-        child: SlideTransition(
+        child: FabSlideTransition(
           position: fabAnimation,
           child: fabButton,
         ),
@@ -246,7 +248,7 @@ class _MusicDetailPageState extends CommonDynPageState<MusicDetailPage> {
       );
     }
 
-    return SlideTransition(
+    return FabSlideTransition(
       position: fabAnimation,
       child: Column(
         mainAxisSize: MainAxisSize.min,

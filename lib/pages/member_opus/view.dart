@@ -65,6 +65,7 @@ class _MemberOpusState extends State<MemberOpus>
     super.build(context);
     final bottom = MediaQuery.viewPaddingOf(context).bottom;
     return ScaffoldLayout(
+      fabAnimation: fabAnimation,
       body: refreshIndicator(
         isClampingScrollPhysics: true,
         onRefresh: _controller.onRefresh,
@@ -86,7 +87,7 @@ class _MemberOpusState extends State<MemberOpus>
         ),
       ),
       fab: _controller.filter?.isNotEmpty == true
-          ? SlideTransition(
+          ? FabSlideTransition(
               position: fabAnimation,
               child: Padding(
                 padding: .only(

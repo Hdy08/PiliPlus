@@ -10,6 +10,7 @@ class SimpleScaffold extends StatelessWidget {
     super.key,
     this.backgroundColor,
     this.fab,
+    this.fabAnimation,
     this.appBar,
     this.showBackToTop = true,
     required this.body,
@@ -17,6 +18,7 @@ class SimpleScaffold extends StatelessWidget {
 
   final Color? backgroundColor;
   final Widget? fab;
+  final Animation<Offset>? fabAnimation;
   final Widget? appBar;
   final Widget body;
   final bool showBackToTop;
@@ -27,6 +29,7 @@ class SimpleScaffold extends StatelessWidget {
       color: backgroundColor,
       child: ScaffoldLayout(
         fab: fab,
+        fabAnimation: fabAnimation,
         appBar: appBar,
         body: body,
         showBackToTop: showBackToTop,
@@ -41,12 +44,14 @@ class ScaffoldLayout extends StatelessWidget {
   const ScaffoldLayout({
     super.key,
     this.fab,
+    this.fabAnimation,
     this.appBar,
     this.showBackToTop = true,
     required this.body,
   });
 
   final Widget? fab;
+  final Animation<Offset>? fabAnimation;
   final Widget? appBar;
   final Widget body;
   final bool showBackToTop;
@@ -58,6 +63,7 @@ class ScaffoldLayout extends StatelessWidget {
     }
     return BackToTop(
       fab: fab,
+      fabAnimation: fabAnimation,
       layoutBuilder: (body, fab) =>
           _ScaffoldLayout(appBar: appBar, body: body, fab: fab),
       child: body,

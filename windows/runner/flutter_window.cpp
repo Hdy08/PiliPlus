@@ -1,10 +1,66 @@
 #include "flutter_window.h"
 
+#include <commctrl.h>
 #include <imm.h>
 #include <optional>
 #include <variant>
 
 #include "flutter/generated_plugin_registrant.h"
+
+namespace {
+
+LRESULT CALLBACK HandleMouseInput(HWND hwnd, UINT message, WPARAM wparam,
+                                  LPARAM lparam, UINT_PTR subclass_id,
+                                  DWORD_PTR) {
+  if (message == WM_NCDESTROY) {
+    RemoveWindowSubclass(hwnd, HandleMouseInput, subclass_id);
+  }
+
+  // Match the engine's exclusion of mouse messages promoted from touch or pen.
+  constexpr LPARAM kTouchOrPenSignature = 0xFF515700;
+  constexpr LPARAM kSignatureMask = 0xFFFFFF00;
+  if (message < WM_MOUSEFIRST || message > WM_MOUSELAST ||
+      (GetMessageExtraInfo() & kSignatureMask) == kTouchOrPenSignature) {
+    return DefSubclassProc(hwnd, message, wparam, lparam);
+  }
+
+  constexpr WPARAM kMouseButtons =
+      MK_LBUTTON | MK_RBUTTON | MK_MBUTTON | MK_XBUTTON1 | MK_XBUTTON2;
+  switch (message) {
+    case WM_MOUSEMOVE:
+      // Backport https://github.com/flutter/flutter/pull/190029 at the runner.
+      if ((wparam & kMouseButtons) != 0 && GetCapture() != hwnd) {
+        return 0;
+      }
+      break;
+    case WM_LBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_XBUTTONDOWN:
+      SetCapture(hwnd);
+      break;
+    case WM_LBUTTONUP:
+    case WM_RBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_XBUTTONUP: {
+      const bool keep_capture =
+          (wparam & kMouseButtons) != 0 && GetCapture() == hwnd;
+      if ((wparam & kMouseButtons) == 0) {
+        ReleaseCapture();
+      }
+      const auto result = DefSubclassProc(hwnd, message, wparam, lparam);
+      // Flutter 3.47 releases capture on every left-button up. Keep it while
+      // another button is still held, as master does, without stealing it back.
+      if (message == WM_LBUTTONUP && keep_capture && GetCapture() == nullptr) {
+        SetCapture(hwnd);
+      }
+      return result;
+    }
+  }
+  return DefSubclassProc(hwnd, message, wparam, lparam);
+}
+
+}  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -29,6 +85,7 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
 
   const HWND flutter_view = flutter_controller_->view()->GetNativeWindow();
+  SetWindowSubclass(flutter_view, HandleMouseInput, 0, 0);
   SetChildContent(flutter_view);
   ImmAssociateContextEx(flutter_view, nullptr, 0);
 

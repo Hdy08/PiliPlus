@@ -136,7 +136,7 @@ class _VideoReplyPanelState extends State<VideoReplyPanel>
                   );
                 },
                 tooltip: '发表评论',
-                child: const Icon(Icons.reply),
+                child: const Icon(Icons.comment_outlined),
               ),
             ),
           ),

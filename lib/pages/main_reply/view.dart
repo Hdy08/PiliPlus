@@ -100,7 +100,7 @@ class _MainReplyPageState extends State<MainReplyPage>
               } catch (_) {}
             },
             tooltip: '评论',
-            child: const Icon(Icons.reply),
+            child: const Icon(Icons.comment_outlined),
           ),
         ),
       ),

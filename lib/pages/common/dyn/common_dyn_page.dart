@@ -393,6 +393,6 @@ mixin CommonDynPageMixin<T extends StatefulWidget>
       } catch (_) {}
     },
     tooltip: '评论',
-    child: const Icon(Icons.reply),
+    child: const Icon(Icons.comment_outlined),
   );
 }

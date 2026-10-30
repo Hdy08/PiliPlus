@@ -524,7 +524,7 @@ class ReplyItemGrpc extends StatelessWidget {
               mainAxisSize: .min,
               children: [
                 Icon(
-                  Icons.reply,
+                  Icons.comment_outlined,
                   size: 18,
                   color: colorScheme.outline.withValues(alpha: 0.8),
                 ),

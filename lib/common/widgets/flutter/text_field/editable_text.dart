@@ -3980,6 +3980,13 @@ class EditableTextState extends State<EditableText>
     if (localValue == _lastKnownRemoteTextEditingValue) {
       return;
     }
+    // A selection-only edit can start composing before the next frame.
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.windows &&
+        renderEditable.hasSize &&
+        localValue.text == renderEditable.plainText) {
+      _updateComposingRectIfNeeded();
+    }
     _textInputConnection!.setEditingState(localValue);
     _lastKnownRemoteTextEditingValue = localValue;
   }
@@ -5158,6 +5165,28 @@ class EditableTextState extends State<EditableText>
   void _updateComposingRectIfNeeded() {
     final TextRange composingRange = _value.composing;
     assert(mounted);
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      final TextSelection selection = _value.selection;
+      final bool isComposing =
+          _value.isComposingRangeValid &&
+          !composingRange.isCollapsed &&
+          composingRange.start <= selection.start &&
+          selection.end <= composingRange.end;
+      // Anchor at the insertion point, not the moving end of the composition.
+      _textInputConnection!.setComposingRect(
+        renderEditable.getLocalRectForCaret(
+          TextPosition(
+            offset: isComposing
+                ? composingRange.start
+                : math.max(0, selection.start),
+            affinity: isComposing
+                ? TextAffinity.downstream
+                : selection.affinity,
+          ),
+        ),
+      );
+      return;
+    }
     Rect? composingRect = renderEditable.getRectForComposingRange(
       composingRange,
     );

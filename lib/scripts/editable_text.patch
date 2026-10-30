@@ -53,10 +53,10 @@ index 5d0121e3f37..a42c758b2fb 100644
              .shift(renderEditable._paintOffset)
              .intersect(Rect.fromLTWH(0, 0, textPainter.width, textPainter.height)),
 diff --git a/packages/flutter/lib/src/widgets/editable_text.dart b/packages/flutter/lib/src/widgets/editable_text.dart
-index b1ae878f2cc..7b179c7e3b3 100644
+index 949c758c951..b4c7505abbc 100644
 --- a/packages/flutter/lib/src/widgets/editable_text.dart
 +++ b/packages/flutter/lib/src/widgets/editable_text.dart
-@@ -2099,7 +2099,7 @@ class EditableText extends StatefulWidget {
+@@ -2104,7 +2104,7 @@ class EditableText extends StatefulWidget {
        }
        return ui.BoxWidthStyle.tight;
      }
@@ -65,7 +65,46 @@ index b1ae878f2cc..7b179c7e3b3 100644
    }
  
    /// The default value for [stylusHandwritingEnabled].
-@@ -5046,7 +5046,9 @@ class EditableTextState extends State<EditableText>
+@@ -4021,6 +4021,13 @@ class EditableTextState extends State<EditableText>
+     if (localValue == _lastKnownRemoteTextEditingValue) {
+       return;
+     }
++    // A selection-only edit can start composing before the next frame.
++    if (!kIsWeb &&
++        defaultTargetPlatform == TargetPlatform.windows &&
++        renderEditable.hasSize &&
++        localValue.text == renderEditable.plainText) {
++      _updateComposingRectIfNeeded();
++    }
+     _textInputConnection!.setEditingState(localValue);
+     _lastKnownRemoteTextEditingValue = localValue;
+   }
+@@ -5098,6 +5105,24 @@ class EditableTextState extends State<EditableText>
+   void _updateComposingRectIfNeeded() {
+     final TextRange composingRange = _value.composing;
+     assert(mounted);
++    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
++      final TextSelection selection = _value.selection;
++      final bool isComposing =
++          _value.isComposingRangeValid &&
++          !composingRange.isCollapsed &&
++          composingRange.start <= selection.start &&
++          selection.end <= composingRange.end;
++      // Anchor at the insertion point, not the moving end of the composition.
++      _textInputConnection!.setComposingRect(
++        renderEditable.getLocalRectForCaret(
++          TextPosition(
++            offset: isComposing ? composingRange.start : math.max(0, selection.start),
++            affinity: isComposing ? TextAffinity.downstream : selection.affinity,
++          ),
++        ),
++      );
++      return;
++    }
+     Rect? composingRect = renderEditable.getRectForComposingRange(composingRange);
+     // Send the caret location instead if there's no marked text yet.
+     if (composingRect == null) {
+@@ -5147,7 +5172,9 @@ class EditableTextState extends State<EditableText>
    void userUpdateTextEditingValue(TextEditingValue value, SelectionChangedCause? cause) {
      // Compare the current TextEditingValue with the pre-format new
      // TextEditingValue value, in case the formatter would reject the change.

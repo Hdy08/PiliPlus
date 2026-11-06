@@ -55,7 +55,7 @@ import 'package:archive/archive.dart' show getCrc32;
 import 'package:canvas_danmaku/canvas_danmaku.dart';
 import 'package:collection/collection.dart' show lowerBound;
 import 'package:easy_debounce/easy_throttle.dart';
-import 'package:flutter/foundation.dart' show ValueNotifier, kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart'
     show DeviceOrientation, HapticFeedback, KeyDownEvent, MethodChannel;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -94,7 +94,8 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   final RxInt position = RxInt(0);
   final RxInt seekPosition = RxInt(0);
-  int get progress => isSeeking.value ? seekPosition.value : position.value;
+  int get progress =>
+      isSeeking.value && hoverDx == null ? seekPosition.value : position.value;
 
   int get positionInMilliseconds =>
       videoPlayerController?.state.position.inMilliseconds ?? 0;
@@ -435,6 +436,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   late double subtitleFontScale = Pref.subtitleFontScale;
   late double subtitleFontScaleFS = Pref.subtitleFontScaleFS;
   late int subtitlePaddingH = Pref.subtitlePaddingH;
+  int? tmpSubtitlePaddingB;
   late int subtitlePaddingB = Pref.subtitlePaddingB;
   late double subtitleBgOpacity = Pref.subtitleBgOpacity;
   final bool showVipDanmaku = Pref.showVipDanmaku; // loop unswitching
@@ -447,9 +449,11 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   late final darkVideoPage = Pref.darkVideoPage;
   late final enableSlideVolumeBrightness = Pref.enableSlideVolumeBrightness;
   late final enableSlideFS = Pref.enableSlideFS;
+  late final enableScrollVolume = Pref.enableScrollVolume;
   late final enableDragSubtitle = Pref.enableDragSubtitle;
+  late final fastForBackwardInSeconds = Pref.fastForBackwardDuration;
   late final fastForBackwardDuration = Duration(
-    seconds: Pref.fastForBackwardDuration,
+    seconds: fastForBackwardInSeconds,
   );
 
   late final horizontalSeasonPanel = Pref.horizontalSeasonPanel;
@@ -480,7 +484,9 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   late final bool tempPlayerConf = Pref.tempPlayerConf;
 
-  late int? cacheVideoQa = PlatformUtils.isMobile ? null : Pref.defaultVideoQa;
+  late int? cacheVideoQa = PlatformUtils.isMobile || Platform.isLinux
+      ? null
+      : Pref.defaultVideoQa;
   late int cacheAudioQa = Pref.defaultAudioQa;
   bool enableHeart = true;
   late final String? hwdec = Pref.enableHA ? Pref.hardwareDecoding : null;
@@ -543,7 +549,9 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   void onUpdatePadding(EdgeInsets padding) {
+    tmpSubtitlePaddingB = null;
     subtitlePaddingB = padding.bottom.round().clamp(0, 200);
+    updateSubtitleStyle();
     putSubtitleSettings();
   }
 
@@ -618,6 +626,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   void _onOrientationChanged(OrientationParams param) {
     _orientation = param.orientation;
     if (Platform.isIOS && !visible) return;
+    if (controlsLock.value) return;
     final orientation = param.orientation;
     final isFullScreen = this.isFullScreen.value;
     if (checkIsAutoRotate &&
@@ -630,7 +639,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     }
     switch (orientation) {
       case .portraitUp:
-        if (!_isVertical && controlsLock.value) return;
         if (!horizontalScreen && !_isVertical && isFullScreen) {
           if (!isManualFS) {
             triggerFullScreen(status: false, orientation: orientation);
@@ -640,7 +648,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         }
       case .portraitDown:
         if (!horizontalScreen) return;
-        if (!_isVertical && controlsLock.value) return;
         portraitDownMode();
       case .landscapeLeft:
         if (!horizontalScreen && !isFullScreen) {
@@ -659,7 +666,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   // 添加一个私有构造函数
   PlPlayerController._() {
-    if (PlatformUtils.isMobile) {
+    if (PlatformUtils.isMobile && !DeviceUtils.isChromeOS) {
       _orientationListener = NativeDeviceOrientationPlatform.instance
           .onOrientationChanged(
             checkIsAutoRotate: checkIsAutoRotate,
@@ -730,6 +737,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     VoidCallback? onInit,
     Volume? volume,
     bool autoFullScreenFlag = false,
+    int? rotate,
   }) async {
     try {
       _processing = true;
@@ -750,7 +758,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
       _seasonId = seasonId;
       _pgcType = pgcType;
 
-      if (showSeekPreview || showHoverPreview) {
+      if (showSeekPreview) {
         _clearPreview();
       }
       cancelLongPressTimer();
@@ -763,7 +771,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         return;
       }
       // 配置Player 音轨、字幕等等
-      await _createVideoController(dataSource, seekTo, volume);
+      await _createVideoController(dataSource, seekTo, volume, rotate);
 
       if (_playerCount == 0) {
         _removeListeners();
@@ -974,6 +982,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     DataSource dataSource,
     Duration? seekTo,
     Volume? volume,
+    int? rotate,
   ) async {
     isBuffering.value = false;
     _heartDuration = 0;
@@ -1003,6 +1012,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
         ...liveBuffer
       else
         ...buffer,
+      'video-rotate': ?rotate?.toString(),
     };
 
     String video = dataSource.videoSource;
@@ -1354,7 +1364,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   void hideTaskControls() {
     _timer?.cancel();
     _timer = Timer(showControlDuration, () {
-      if (!isSeeking.value && hoverPosition.value == null && !tripling) {
+      if (!isSeeking.value && !tripling && hoverDx == null) {
         controls = false;
       }
       _timer = null;
@@ -1362,17 +1372,17 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   void onSeekStart(int seekFrom) {
-    hoverPosition.value = null;
-    showPreview.value = false;
     seekPosition.value = seekFrom;
     isSeeking.value = true;
   }
 
   void onSeekEnd() {
-    showPreview.value = false;
+    if (showSeekPreview) {
+      showPreview.value = false;
+      _videoShotLoader.stopRetry();
+    }
     hasToasted = false;
     isSeeking.value = false;
-    if (showSeekPreview || showHoverPreview) _videoShotLoader.stopRetry();
     hideTaskControls();
   }
 
@@ -1435,7 +1445,6 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   set controls(bool visible) {
     showControls.value = visible;
-    if (!visible) endHoverPreview();
     _timer?.cancel();
     if (visible) {
       hideTaskControls();
@@ -1505,6 +1514,20 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
 
   void onBackward(Duration duration) {
     onForwardBackward(videoPlayerController!.state.position - duration);
+  }
+
+  void multiBackwardStart([_]) {
+    isSeeking.value = true;
+    seekPosition.value = max(0, seekPosition.value - fastForBackwardInSeconds);
+  }
+
+  void multiBackwardEnd() {
+    if (isSeeking.value) {
+      isSeeking.value = false;
+      onForwardBackward(Duration(seconds: seekPosition.value));
+    } else {
+      onBackward(fastForBackwardDuration);
+    }
   }
 
   void onForwardBackward(Duration duration) {
@@ -1755,10 +1778,9 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     _disableAutoEnterPip();
     setPlayCallBack(null);
     dmState.clear();
-    if (showSeekPreview || showHoverPreview) {
+    if (showSeekPreview) {
       _clearPreview();
     }
-    hoverFraction.dispose();
     if (Platform.isAndroid) {
       AndroidHelper$ToDart.onUserLeaveHint = null;
     } else if (Platform.isIOS) {
@@ -1819,72 +1841,41 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   late final _videoShotLoader = VideoShotLoader(
     fetch: () => VideoHttp.videoshot(bvid: bvid, cid: cid!),
     isActive: () =>
-        (isSeeking.value && showSeekPreview && !hasToasted) ||
-        hoverPosition.value != null,
+        showSeekPreview &&
+        ((isSeeking.value && !hasToasted) || hoverDx != null),
     onLoaded: () {
-      if (isSeeking.value && showSeekPreview && !hasToasted) {
+      if (showSeekPreview &&
+          ((isSeeking.value && !hasToasted) || hoverDx != null)) {
         updatePreviewIndex(seekPosition.value);
-      } else if (hoverPosition.value case final seconds?) {
-        updatePreviewIndex(seconds);
       }
     },
   );
+  double? hoverDx;
   late final RxBool showPreview = false.obs;
   late final showSeekPreview = Pref.showSeekPreview;
-  late final showHoverPreview = Pref.showHoverPreview;
-  late final seekPreviewPosition = Pref.seekPreviewPosition;
-  final hoverPosition = RxnInt();
-  final hoverFraction = ValueNotifier(0.0);
   late final previewIndex = RxnInt();
 
-  void updateHoverPreview(double fraction) {
-    if (!showHoverPreview ||
-        isSeeking.value ||
-        controlsLock.value ||
-        isLive ||
-        isFileSource ||
-        duration.value <= 0) {
-      return;
-    }
-    fraction = fraction.clamp(0.0, 1.0);
-    if (seekPreviewPosition == .aboveProgressBar) {
-      hoverFraction.value = fraction;
-    }
-    final seconds = (fraction * duration.value).round();
-    if (hoverPosition.value != seconds || !showPreview.value) {
-      hoverPosition.value = seconds;
-      updatePreviewIndex(seconds);
-    }
-  }
-
-  void endHoverPreview() {
-    if (hoverPosition.value == null) return;
-    hoverPosition.value = null;
-    if (!isSeeking.value) {
-      showPreview.value = false;
-      _videoShotLoader.stopRetry();
-    }
-    hideTaskControls();
-  }
+  void stopPreviewRetry() => _videoShotLoader.stopRetry();
 
   void updatePreviewIndex(int seconds) {
     _videoShotLoader.load();
-    if (videoShot case Success(:final response)
-        when response.image.isNotEmpty &&
-            response.index.isNotEmpty &&
-            response.imgXLen > 0 &&
-            response.imgYLen > 0) {
-      previewIndex.value = max(
+    if (videoShot case Success(:final response)) {
+      showPreview.value = true;
+      final index = max(
         0,
         lowerBound(response.index, seconds + 1) - 2,
       ).clamp(0, response.image.length * response.totalPerImage - 1);
-      showPreview.value = true;
+      if (previewIndex.value != index) {
+        previewIndex.value = index;
+      } else if (hoverDx != null) {
+        previewIndex.refresh();
+      }
     }
   }
 
   void _clearPreview() {
     _videoShotLoader.clear();
-    hoverPosition.value = null;
+    hoverDx = null;
     showPreview.value = false;
     previewIndex.value = null;
   }

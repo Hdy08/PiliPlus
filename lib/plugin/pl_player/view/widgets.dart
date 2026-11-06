@@ -1,63 +1,5 @@
 part of 'view.dart';
 
-class SeekPreviewLayout extends SingleChildLayoutDelegate {
-  const SeekPreviewLayout(
-    this.bar,
-    this.fraction,
-    this.obstructionHeight, {
-    this.hoverFraction,
-  }) : super(relayout: hoverFraction);
-
-  final Rect bar;
-  final double fraction;
-  final double obstructionHeight;
-  final ValueListenable<double>? hoverFraction;
-
-  double _bottom(Size size) =>
-      (math.min(bar.top, bar.bottom - obstructionHeight) - 8).clamp(
-        0.0,
-        size.height,
-      );
-
-  @override
-  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
-      BoxConstraints(
-        maxWidth: math.max(0.0, constraints.maxWidth - 16),
-        maxHeight: math.max(0.0, _bottom(constraints.biggest) - 8),
-      );
-
-  @override
-  Offset getPositionForChild(Size size, Size childSize) {
-    final x =
-        bar.left +
-        1.75 +
-        math.max(0.0, bar.width - 3.5) *
-            (hoverFraction?.value ?? fraction).clamp(0.0, 1.0);
-    final margin = math.min(8.0, math.max(0.0, size.width - childSize.width));
-    return Offset(
-      (x - childSize.width / 2).clamp(
-        margin,
-        math.max(margin, size.width - childSize.width - 8),
-      ),
-      _bottom(size) - childSize.height,
-    );
-  }
-
-  @override
-  bool shouldRelayout(SeekPreviewLayout oldDelegate) =>
-      bar != oldDelegate.bar ||
-      fraction != oldDelegate.fraction ||
-      hoverFraction != oldDelegate.hoverFraction ||
-      obstructionHeight != oldDelegate.obstructionHeight;
-}
-
-double _dmChartBottomMargin(
-  VideoDetailController controller,
-  double offset,
-) => controller.viewPointList.isNotEmpty && controller.showVP.value
-    ? 19.25 + offset
-    : 4.25 + offset;
-
 Widget buildDmChart(
   Color color,
   List<double> dmTrend,
@@ -68,7 +10,11 @@ Widget buildDmChart(
     child: Container(
       height: 12,
       margin: EdgeInsets.only(
-        bottom: _dmChartBottomMargin(videoDetailController, offset),
+        bottom:
+            videoDetailController.viewPointList.isNotEmpty &&
+                videoDetailController.showVP.value
+            ? 19.25 + offset
+            : 4.25 + offset,
       ),
       child: LineChart(
         LineChartData(
@@ -105,33 +51,13 @@ Widget buildDmChart(
   );
 }
 
-Widget _buildSeekTime(int seconds, int duration) {
-  const textStyle = TextStyle(color: Colors.white, fontSize: 12);
-  return Container(
-    decoration: const BoxDecoration(
-      color: Color(0x88000000),
-      borderRadius: BorderRadius.all(Radius.circular(64)),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-    child: Row(
-      spacing: 2,
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(DurationUtils.formatDuration(seconds), style: textStyle),
-        const Text('/', style: textStyle),
-        Text(DurationUtils.formatDuration(duration), style: textStyle),
-      ],
-    ),
-  );
-}
+const _kBarMargin = 20.0;
 
 Widget buildSeekPreviewWidget(
   PlPlayerController plPlayerController,
   double maxWidth,
-  double maxHeight, {
-  bool centered = true,
-}) {
+  double maxHeight,
+) {
   return Obx(
     () {
       if (!plPlayerController.showPreview.value) {
@@ -141,9 +67,12 @@ Widget buildSeekPreviewWidget(
       try {
         final data = plPlayerController.videoShot!.data;
 
-        final double scale =
-            plPlayerController.isFullScreen.value &&
-                (PlatformUtils.isDesktop || !plPlayerController.isVertical)
+        final double scale = PlatformUtils.isDesktop
+            ? maxHeight > maxWidth
+                  ? 3
+                  : 4
+            : plPlayerController.isFullScreen.value &&
+                  !plPlayerController.isVertical
             ? 4
             : 3;
         double height = 27 * scale;
@@ -156,40 +85,62 @@ Widget buildSeekPreviewWidget(
         final int imgYLen = data.imgYLen;
         final int totalPerImage = data.totalPerImage;
 
-        return Align(
-          alignment: Alignment.center,
-          widthFactor: centered ? null : 1,
-          heightFactor: centered ? null : 1,
-          child: Obx(
-            () {
-              final index = plPlayerController.previewIndex.value!;
-              int pageIndex = (index ~/ totalPerImage).clamp(
-                0,
-                data.image.length - 1,
-              );
-              int align = index % totalPerImage;
-              int x = align % imgXLen;
-              int y = align ~/ imgXLen;
-              final url = data.image[pageIndex];
+        return Obx(
+          () {
+            final index = plPlayerController.previewIndex.value!;
+            int pageIndex = (index ~/ totalPerImage).clamp(
+              0,
+              data.image.length - 1,
+            );
+            int align = index % totalPerImage;
+            int x = align % imgXLen;
+            int y = align ~/ imgXLen;
+            final url = data.image[pageIndex];
 
-              return ClipRRect(
-                borderRadius: Style.mdRadius,
-                child: VideoShotImage(
-                  image: CachedNetworkImageProvider(
-                    url,
-                    cacheManager: CacheManager.manager,
-                    headers: Constants.baseHeaders,
-                  ),
-                  x: x,
-                  y: y,
-                  columns: imgXLen,
-                  rows: imgYLen,
-                  height: height,
-                  onRetry: () => CacheManager.manager.removeFile(url),
-                ),
-              );
-            },
-          ),
+            final dx = plPlayerController.hoverDx;
+            final hovering = dx != null;
+            final position = hovering
+                ? DurationUtils.formatDuration(
+                    plPlayerController.seekPosition.value,
+                  )
+                : null;
+
+            return VideoShotImage(
+              image: CachedNetworkImageProvider(
+                url,
+                cacheManager: CacheManager.manager,
+                headers: Constants.baseHeaders,
+              ),
+              x: x,
+              y: y,
+              columns: imgXLen,
+              rows: imgYLen,
+              height: height,
+              onRetry: () => CacheManager.manager.removeFile(url),
+              position: position,
+              builder: (image, size) {
+                final child = ClipRRect(
+                  borderRadius: Style.mdRadius,
+                  child: image,
+                );
+                if (hovering) {
+                  final width = size.width;
+                  final left = clampDouble(
+                    dx - width / 2 + _kBarMargin,
+                    _kBarMargin,
+                    maxWidth - width - _kBarMargin,
+                  );
+
+                  return Positioned(
+                    left: left,
+                    bottom: 80,
+                    child: child,
+                  );
+                }
+                return Center(child: child);
+              },
+            );
+          },
         );
       } catch (e) {
         if (kDebugMode) rethrow;
@@ -209,6 +160,8 @@ class VideoShotImage extends StatefulWidget {
     required this.rows,
     required this.height,
     this.onRetry,
+    this.position,
+    this.builder,
   }) : assert(columns > 0 && rows > 0);
 
   final ImageProvider image;
@@ -218,6 +171,8 @@ class VideoShotImage extends StatefulWidget {
   final int rows;
   final double height;
   final AsyncCallback? onRetry;
+  final String? position;
+  final Widget Function(Widget image, Size size)? builder;
 
   @override
   State<VideoShotImage> createState() => _VideoShotImageState();
@@ -310,7 +265,7 @@ class _VideoShotImageState extends State<VideoShotImage> {
   late final _borderPaint = Paint()
     ..color = Colors.white
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.5;
+    ..strokeWidth = kPreviewStroke;
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +275,7 @@ class _VideoShotImageState extends State<VideoShotImage> {
       final tileHeight = image.height / widget.rows;
       final size = Size(widget.height * tileWidth / tileHeight, widget.height);
       final dstRect = Offset.zero & size;
-      return CroppedImage(
+      final child = CroppedImage(
         size: size,
         image: image,
         srcRect: Rect.fromLTWH(
@@ -333,7 +288,9 @@ class _VideoShotImageState extends State<VideoShotImage> {
         rrect: RRect.fromRectAndRadius(dstRect, const Radius.circular(10)),
         imgPaint: _imgPaint,
         borderPaint: _borderPaint,
+        position: widget.position,
       );
+      return widget.builder?.call(child, size) ?? child;
     }
     return const SizedBox.shrink();
   }
@@ -455,8 +412,11 @@ class _VideoTime extends LeafRenderObjectWidget {
   final String position;
   final String duration;
 
+  static final double _fontSize = PlatformUtils.isDesktop ? 12 : 10;
+
   @override
   _RenderVideoTime createRenderObject(BuildContext context) => _RenderVideoTime(
+    fontSize: MediaQuery.textScalerOf(context).scale(_fontSize),
     position: position,
     duration: duration,
   );
@@ -474,15 +434,18 @@ class _VideoTime extends LeafRenderObjectWidget {
 
 class _RenderVideoTime extends RenderBox {
   _RenderVideoTime({
+    required this._fontSize,
     required this._position,
     required this._duration,
   });
+
+  final double _fontSize;
 
   String _duration;
   set duration(String value) {
     if (_duration == value) return;
     _duration = value;
-    final paragraph = _buildParagraph(const Color(0xFFD0D0D0), _duration);
+    final paragraph = _buildParagraph(_durationColor, _duration, _fontSize);
     if (paragraph.maxIntrinsicWidth != _cache?.maxIntrinsicWidth) {
       markNeedsLayout();
     } else {
@@ -499,13 +462,20 @@ class _RenderVideoTime extends RenderBox {
     markNeedsSemanticsUpdate();
   }
 
+  static const _positionColor = Colors.white;
+  static const _durationColor = Color(0xFFD0D0D0);
+
   ui.Paragraph? _cache;
 
-  static ui.Paragraph _buildParagraph(Color color, String time) {
+  static ui.Paragraph _buildParagraph(
+    Color color,
+    String time,
+    double fontSize,
+  ) {
     final builder =
         ui.ParagraphBuilder(
             ui.ParagraphStyle(
-              fontSize: 10,
+              fontSize: fontSize,
               height: 1.4,
               fontFamily: 'Monospace',
             ),
@@ -513,7 +483,7 @@ class _RenderVideoTime extends RenderBox {
           ..pushStyle(
             ui.TextStyle(
               color: color,
-              fontSize: 10,
+              fontSize: fontSize,
               height: 1.4,
               fontFamily: 'Monospace',
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -527,8 +497,9 @@ class _RenderVideoTime extends RenderBox {
   @override
   ui.Size computeDryLayout(covariant BoxConstraints constraints) {
     final paragraph = _cache ??= _buildParagraph(
-      const Color(0xFFD0D0D0),
+      _durationColor,
       _duration,
+      _fontSize,
     );
     return Size(paragraph.maxIntrinsicWidth, paragraph.height * 2);
   }
@@ -548,7 +519,7 @@ class _RenderVideoTime extends RenderBox {
 
   @override
   void paint(PaintingContext context, ui.Offset offset) {
-    final para = _buildParagraph(Colors.white, _position);
+    final para = _buildParagraph(_positionColor, _position, _fontSize);
     context.canvas
       ..drawParagraph(
         para,

@@ -161,7 +161,7 @@ class PlayerFocus extends StatelessWidget {
     // 非按住型动作只在初次按下时响应 —— Flutter 对一次按键会依次派发
     // KeyDown / KeyRepeat / KeyUp 三类事件，不在这里拦掉后两者的话，一次敲击会被
     // 执行两次（按下一次、松开一次）。拦住之后，下面各分支就不必再判断 isDown 了。
-    // 需要看到 KeyUp 的按住型动作只有 isHold 那 4 个：音量加减、快进、三连。
+    // 按住型动作需要接收 KeyUp：音量加减、快进、快退、三连。
     if (!isDown && !action.isHold) return true;
 
     // 任何其他按键按下时取消进行中的三连（Q/R 长按本身除外）
@@ -216,10 +216,22 @@ class PlayerFocus extends StatelessWidget {
         return true;
 
       case ShortcutAction.seekBackward:
-        if (hasPlayer) {
-          plPlayerController.onBackward(
-            plPlayerController.fastForBackwardDuration,
-          );
+        if (!plPlayerController.isLive) {
+          if (event is KeyDownEvent) {
+            if (hasPlayer) {
+              plPlayerController
+                ..longPressTimer?.cancel()
+                ..longPressTimer = Timer.periodic(
+                  const Duration(milliseconds: 200),
+                  plPlayerController.multiBackwardStart,
+                );
+            }
+          } else if (event is KeyUpEvent) {
+            plPlayerController.cancelLongPressTimer();
+            if (hasPlayer) {
+              plPlayerController.multiBackwardEnd();
+            }
+          }
         }
         return true;
 

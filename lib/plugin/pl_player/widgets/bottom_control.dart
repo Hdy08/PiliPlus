@@ -14,39 +14,59 @@ class BottomControl extends StatelessWidget {
     super.key,
     required this.maxWidth,
     required this.isFullScreen,
+    required this.animCtr,
     required this.controller,
-    required this.controlsAnimation,
     required this.buildBottomControl,
     required this.videoDetailController,
-    this.progressBarKey,
   });
 
   final double maxWidth;
   final bool isFullScreen;
+  final AnimationController animCtr;
   final PlPlayerController controller;
-  final Animation<double> controlsAnimation;
   final ValueGetter<Widget> buildBottomControl;
   final VideoDetailController videoDetailController;
-  final Key? progressBarKey;
 
   void onDragStart(ThumbDragDetails duration) {
     feedBack();
     controller.onSeekStart(duration.seconds);
-    onDragUpdate(duration);
   }
 
   void onDragUpdate(ThumbDragDetails duration) {
     if (!controller.isFileSource && controller.showSeekPreview) {
       controller.updatePreviewIndex(duration.seconds);
+      if (controller.hoverDx != null) {
+        controller.hoverDx = duration.localPosition.dx;
+      }
     }
     controller.seekPosition.value = duration.seconds;
   }
 
   void onSeek(int milliseconds) {
     controller
+      ..hoverDx = null
       ..position.value = milliseconds ~/ 1000
       ..onSeekEnd()
       ..seekTo(Duration(milliseconds: milliseconds), isSeek: false);
+  }
+
+  void _onHover(double dx, int seconds) {
+    if (animCtr.isAnimating) return;
+    controller
+      ..hoverDx = dx
+      ..seekPosition.value = seconds
+      ..updatePreviewIndex(seconds);
+  }
+
+  void _onExit() {
+    if (controller.isSeeking.value || controller.hoverDx == null) {
+      return;
+    }
+    controller
+      ..hoverDx = null
+      ..showPreview.value = false
+      ..stopPreviewRetry()
+      ..hideTaskControls();
   }
 
   @override
@@ -57,6 +77,11 @@ class BottomControl extends StatelessWidget {
         : colorScheme.primary;
     final thumbGlowColor = primary.withAlpha(80);
     final bufferedBarColor = primary.withValues(alpha: 0.4);
+
+    final enableHover =
+        PlatformUtils.isDesktop &&
+        controller.showSeekPreview &&
+        !controller.isFileSource;
 
     return Padding(
       padding: const .symmetric(horizontal: 10, vertical: 12),
@@ -74,7 +99,6 @@ class BottomControl extends StatelessWidget {
                   children: [
                     Obx(
                       () => ProgressBar(
-                        key: progressBarKey,
                         progress: controller.progress,
                         buffered: controller.buffered.value,
                         total: controller.duration.value,
@@ -89,7 +113,9 @@ class BottomControl extends StatelessWidget {
                         onDragStart: onDragStart,
                         onDragUpdate: onDragUpdate,
                         onSeek: onSeek,
-                      ).withPreview(controller, controlsAnimation),
+                        onHover: enableHover ? _onHover : null,
+                        onExit: enableHover ? _onExit : null,
+                      ),
                     ),
                     if (controller.enableBlock &&
                         videoDetailController.segmentProgressList.isNotEmpty)
@@ -126,34 +152,6 @@ class BottomControl extends StatelessWidget {
           buildBottomControl(),
         ],
       ),
-    );
-  }
-}
-
-extension ProgressBarPreview on ProgressBar {
-  Widget withPreview(
-    PlPlayerController controller,
-    Animation<double> controlsAnimation,
-  ) {
-    if (!controller.showHoverPreview) return this;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        void update(PointerEvent event) {
-          if (!controlsAnimation.isCompleted) return;
-          final width = constraints.maxWidth - barHeight;
-          if (total <= 0 || width <= 0) return;
-          final fraction = ((event.localPosition.dx - barHeight / 2) / width)
-              .clamp(0.0, 1.0);
-          controller.updateHoverPreview(fraction);
-        }
-
-        return MouseRegion(
-          onEnter: update,
-          onHover: update,
-          onExit: (_) => controller.endHoverPreview(),
-          child: this,
-        );
-      },
     );
   }
 }

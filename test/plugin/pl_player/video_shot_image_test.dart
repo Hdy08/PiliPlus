@@ -42,6 +42,8 @@ Widget _preview(
   int y = 0,
   double height = 90,
   AsyncCallback? onRetry,
+  String? position,
+  Widget Function(Widget image, Size size)? builder,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: Center(
@@ -53,6 +55,8 @@ Widget _preview(
       rows: 2,
       height: height,
       onRetry: onRetry,
+      position: position,
+      builder: builder,
     ),
   ),
 );
@@ -127,6 +131,45 @@ void main() {
     expect(first.loads, 1);
     expect(second.loads, 1);
   });
+
+  testWidgets(
+    'hover layout uses decoded size and time changes reuse the image',
+    (
+      tester,
+    ) async {
+      final image = _DeferredImage();
+      var layouts = 0;
+      Widget builder(Widget child, Size size) {
+        layouts++;
+        expect(size, const Size(120, 90));
+        return Stack(
+          children: [
+            Positioned(left: 200 - size.width / 2, bottom: 80, child: child),
+          ],
+        );
+      }
+
+      await tester.pumpWidget(
+        _preview(image, position: '00:05', builder: builder),
+      );
+      expect(layouts, 0);
+      image.result.complete(sheet);
+      await tester.pumpAndSettle();
+      final original = tester.widget<CroppedImage>(find.byType(CroppedImage));
+      expect(original.position, '00:05');
+      expect(tester.widget<Positioned>(find.byType(Positioned)).left, 140);
+
+      await tester.pumpWidget(
+        _preview(image, x: 2, position: '00:12', builder: builder),
+      );
+      final updated = tester.widget<CroppedImage>(find.byType(CroppedImage));
+      expect(updated.image, same(original.image));
+      expect(updated.position, '00:12');
+      expect(updated.srcRect, const Rect.fromLTWH(80, 0, 40, 30));
+      expect(image.loads, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'movement during loading uses the latest tile without reloading',

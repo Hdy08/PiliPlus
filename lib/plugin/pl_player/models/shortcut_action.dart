@@ -107,9 +107,10 @@ enum ShortcutAction {
     context: .vod,
   ),
   seekBackward(
-    '快退',
+    '快退（长按连续后退）',
     .volumeSeek,
     KeyBinding(LogicalKeyboardKey.arrowLeft),
+    isHold: true,
     context: .vod,
   ),
   refreshStream(

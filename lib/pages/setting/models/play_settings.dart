@@ -8,13 +8,12 @@ import 'package:PiliPlus/models/common/super_resolution_type.dart';
 import 'package:PiliPlus/models/common/video/subtitle_pref_type.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
 import 'package:PiliPlus/pages/setting/models/shortcut_settings.dart';
-import 'package:PiliPlus/pages/setting/pages/fullscreen_sc_size.dart';
+import 'package:PiliPlus/pages/setting/pages/fullscreen_sc.dart';
 import 'package:PiliPlus/pages/setting/widgets/select_dialog.dart';
 import 'package:PiliPlus/pages/setting/widgets/slider_dialog.dart';
 import 'package:PiliPlus/plugin/pl_player/models/bottom_progress_behavior.dart';
 import 'package:PiliPlus/plugin/pl_player/models/fullscreen_mode.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_repeat.dart';
-import 'package:PiliPlus/plugin/pl_player/models/seek_preview_position.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/android/android_helper.dart';
 import 'package:PiliPlus/utils/desktop/window_controller.dart';
@@ -139,21 +138,6 @@ List<SettingsModel> get playSettings => [
     leading: Icon(Icons.preview_outlined),
     setKey: SettingBoxKey.showSeekPreview,
     defaultVal: true,
-  ),
-  const SwitchModel(
-    title: '鼠标在进度条上悬停预览视频缩略图',
-    leading: Icon(Icons.preview_outlined),
-    setKey: SettingBoxKey.showHoverPreview,
-    defaultVal: false,
-  ),
-  PopupModel(
-    title: '视频缩略图位置',
-    leading: const Icon(Icons.picture_in_picture_alt_outlined),
-    value: () => Pref.seekPreviewPosition,
-    items: SeekPreviewPosition.values,
-    onSelected: (value, setState) => GStorage.setting
-        .put(SettingBoxKey.seekPreviewPosition, value.index)
-        .whenComplete(setState),
   ),
   const SwitchModel(
     title: '显示高能进度条',
@@ -302,10 +286,10 @@ List<SettingsModel> get playSettings => [
         .whenComplete(setState),
   ),
   NormalModel(
-    title: '全屏 SC 大小',
-    subtitle: 'SuperChat (醒目留言) 大小设置',
+    title: '全屏 SuperChat 设置',
+    subtitle: '全屏 SuperChat (醒目留言) 大小、不透明度、缩放设置',
     leading: const Icon(Icons.open_in_full),
-    onTap: (_, _) => Get.to(const FullScreenScSize()),
+    onTap: (_, _) => Get.to(const FullScreenSc()),
   ),
   const SwitchModel(
     title: '竖屏扩大展示',

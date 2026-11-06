@@ -25,8 +25,6 @@ abstract final class SettingBoxKey {
       enableAutoEnter = 'enableAutoEnter',
       enableAutoExit = 'enableAutoExit',
       enableOnlineTotal = 'enableOnlineTotal',
-      superChatType = 'superChatType',
-      fullScreenSCWidth = 'fullScreenSCWidth',
       keyboardControl = 'keyboardControl',
       customKeyBindings = 'customKeyBindings',
       pauseOnMinimize = 'pauseOnMinimize',
@@ -112,8 +110,6 @@ abstract final class SettingBoxKey {
       showMedal = 'showMedal',
       enableLivePhoto = 'enableLivePhoto',
       showSeekPreview = 'showSeekPreview',
-      showHoverPreview = 'showHoverPreview',
-      seekPreviewPosition = 'seekPreviewPosition',
       showDmChart = 'showDmChart',
       enableCommAntifraud = 'enableCommAntifraud',
       biliSendCommAntifraud = 'biliSendCommAntifraud',
@@ -172,6 +168,12 @@ abstract final class SettingBoxKey {
       blockAtOnlyReply = 'blockAtOnlyReply',
       blockReplyAtCount = 'blockReplyAtCount',
       filterIntro = 'filterIntro';
+
+  static const String superChatType = 'superChatType',
+      enableFullScreenSC = 'enableFullScreenSC',
+      fullScreenSCOpacity = 'fullScreenSCOpacity',
+      fullScreenSCScale = 'fullScreenSCScale',
+      fullScreenSCWidth = 'fullScreenSCWidth';
 
   static const String minimizeOnExit = 'minimizeOnExit',
       windowSize = 'windowSize',
@@ -241,6 +243,7 @@ abstract final class SettingBoxKey {
       upPanelPosition = 'upPanelPosition',
       dynamicsShowAllFollowedUp = 'dynamicsShowAllFollowedUp',
       useSideBar = 'useSideBar',
+      hideSideBarLabel = 'hideSideBarLabel',
       enableMYBar = 'enableMYBar',
       hideTopBar = 'hideSearchBar',
       hideBottomBar = 'hideTabBar',
